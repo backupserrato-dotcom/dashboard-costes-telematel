@@ -54,6 +54,14 @@ export async function fetchCalidad() {
   return null;
 }
 
+export async function fetchAuditStatus(force = false) {
+  try {
+    const res = await fetch(`${SERVER_CONFIG.apiProxyUrl}/audit-status${force ? '?force=true' : ''}`);
+    if (res.ok) return await res.json();
+  } catch (e) { console.warn('Audit status fetch error:', e.message); }
+  return null;
+}
+
 export async function refreshErpNow() {
   try {
     const res = await fetch(`${SERVER_CONFIG.apiProxyUrl}/refresh-erp`, { method: 'POST' });
