@@ -139,7 +139,7 @@ export default function App() {
 
   const handleExportExcel = async () => {
     try {
-      const XLSX = await import('xlsx');
+      const writeExcelFile = (await import('write-excel-file/browser')).default;
       // Hoja 1: detalle por artículo + empresa + delegación
       const exportData = rows.map(r => ({
         'Código Artículo': r.cod_art,
@@ -237,12 +237,39 @@ export default function App() {
         'Importe Pendiente Recepcionar (€)': p.importe_pendiente
       }));
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportData), 'Detalle Artículos');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(unifiedData), 'Lista Unificada General');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(listin11ExportData), 'LISTIN 11 (Grupo 1L-11)');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ordersData), 'Pedidos Pendientes');
-      XLSX.writeFile(wb, `LISTIN_11_Costes_y_Compras_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const createSheet = (sheet, data) => {
+        if (data.length === 0) {
+          return { sheet, data: [[{ value: 'Sin datos para los filtros aplicados' }]], columns: [{ width: 36 }] };
+        }
+
+        const headers = Object.keys(data[0]);
+        return {
+          sheet,
+          stickyRowsCount: 1,
+          columns: headers.map((header) => ({ width: Math.min(42, Math.max(12, header.length + 2)) })),
+          data: [
+            headers.map((value) => ({ value, fontWeight: 'bold' })),
+            ...data.map((row) => headers.map((header) => ({ value: row[header] ?? null }))),
+          ],
+        };
+      };
+
+      const sheets = [
+        createSheet('Detalle Artículos', exportData),
+        createSheet('Lista Unificada General', unifiedData),
+        createSheet('LISTIN 11 (Grupo 1L-11)', listin11ExportData),
+        createSheet('Pedidos Pendientes', ordersData),
+      ];
+
+      const blob = await writeExcelFile(sheets).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `LISTIN_11_Costes_y_Compras_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error al exportar a Excel:', err);
       alert('Error al generar el archivo Excel. Por favor reintente.');
