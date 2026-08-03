@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Layers, Zap, ArrowUp, ArrowDown, Search, ChevronLeft, ChevronRight, AlertCircle, Info, Calculator, CheckCircle2 } from 'lucide-react';
+import { Layers, Zap, ArrowUp, ArrowDown, Search, ChevronLeft, ChevronRight, AlertCircle, Info, Calculator, CheckCircle2, SlidersHorizontal, BarChart3 } from 'lucide-react';
 
 const fmt = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 4 }).format(v || 0);
 const fmtC = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
@@ -17,10 +17,16 @@ const SortIcon = ({ field, sortField, sortDir }) => {
 
 // Helper algorithm to parse cable section and color from commercial description
 export function parseCableSectionAndColor(desc = '') {
-  if (!desc) return { section: "OTRA", color: "OTRO" };
+  if (!desc) return { section: "OTRA", color: "OTRO", family: "GENERAL" };
   const d = desc.toString().toLowerCase();
 
-  // Section match: matches patterns like "1,5", "2.5", "1", "4", "6", "10", "16", "25", "32", "35"
+  // Family match
+  let family = "H07Z1-K";
+  if (d.includes("es05z1-k")) family = "ES05Z1-K";
+  else if (d.includes("h07z-r")) family = "H07Z-R";
+  else if (d.includes("h07v-k")) family = "H07V-K";
+
+  // Section match
   let section = "OTRA";
   const match = d.match(/(?:1x|\b)(1[.,]5|2[.,]5|1|4|6|10|16|25|32|35)(?:\s*cpr|\s*mm2|\s*mm|\s*azul|\s*marr|\s*negr|\s*gris|\s*amar|\s*rojo|\s*blan|\s*viol|\s*naran|\s*verde|\s*\(bob|\s*\(rol|\b)/);
   if (match) {
@@ -31,7 +37,7 @@ export function parseCableSectionAndColor(desc = '') {
     }
   }
 
-  // Color match with encoding resiliency for Spanish accent characters
+  // Color match with encoding resiliency
   let color = "OTRO / SIN COLOR";
   if (/\b(azul)\b/.test(d)) color = "AZUL";
   else if (/\b(marron|marrón|marrn|marr.n)\b/.test(d)) color = "MARRÓN";
@@ -43,10 +49,13 @@ export function parseCableSectionAndColor(desc = '') {
   else if (/\b(rojo)\b/.test(d)) color = "ROJO";
   else if (/\b(verde)\b/.test(d)) color = "VERDE";
 
-  return { section, color };
+  return { section, color, family };
 }
 
 export default function Listin11View({ unifiedRows = [] }) {
+  // Calculation Mode State: 'WEIGHTED' (Media Ponderada por Stock) vs 'ARITHMETIC' (Media Aritmética Simple de Ficha)
+  const [calcMode, setCalcMode] = useState('WEIGHTED');
+
   // Table 1 State (Unified Cost List for Grupo 1L & Subgrupo 11)
   const [t1SortField, setT1SortField] = useState('valoracion_unificada');
   const [t1SortDir, setT1SortDir] = useState('desc');
@@ -97,7 +106,7 @@ export default function Listin11View({ unifiedRows = [] }) {
   const t1TotalVal = t1Sorted.reduce((sum, r) => sum + (r.valoracion_unificada || 0), 0);
 
   // --- TABLA 2: Cable Section Unification (Grupo 1L / Subgrupo 11) ---
-  // 1. Attach parsed section and color
+  // 1. Attach parsed section, color and family
   const cableArticles = useMemo(() => {
     return listin11BaseRows.map(r => {
       const parsed = parseCableSectionAndColor(r.nom_art);
@@ -105,17 +114,27 @@ export default function Listin11View({ unifiedRows = [] }) {
         ...r,
         section: parsed.section,
         color: parsed.color,
+        family: parsed.family,
         coste_individual: r.coste_medio_unificado || 0
       };
     });
   }, [listin11BaseRows]);
 
-  // 2. Compute Weighted Average Cost PER SECTION (across ALL colors & stocks)
-  // Weighted Avg = sum(stock * cost) / sum(stock)
+  // 2. Compute BOTH Section Statistics:
+  // - Weighted Average Cost: sum(stock * cost) / sum(stock)
+  // - Simple Arithmetic Mean: avg(coste_individual) across all section references
   const sectionStats = useMemo(() => {
     const stats = {};
     for (const sec of TARGET_SECTIONS) {
-      stats[sec] = { section: sec, articlesCount: 0, totalStock: 0, totalValuation: 0, weightedCost: 0 };
+      stats[sec] = {
+        section: sec,
+        articlesCount: 0,
+        totalStock: 0,
+        totalValuation: 0,
+        weightedCost: 0,
+        arithmeticCost: 0,
+        costsList: []
+      };
     }
 
     for (const c of cableArticles) {
@@ -124,33 +143,44 @@ export default function Listin11View({ unifiedRows = [] }) {
         stats[sec].articlesCount++;
         stats[sec].totalStock += c.stock_unificado || 0;
         stats[sec].totalValuation += c.valoracion_unificada || 0;
+        if (c.coste_individual > 0) {
+          stats[sec].costsList.push(c.coste_individual);
+        }
       }
     }
 
     for (const sec of TARGET_SECTIONS) {
       const s = stats[sec];
-      s.weightedCost = s.totalStock > 0 ? s.totalValuation / s.totalStock : 0;
+      s.weightedCost = s.totalStock > 0 ? s.totalValuation / s.totalStock : (s.costsList.length > 0 ? s.costsList[0] : 0);
+      s.arithmeticCost = s.costsList.length > 0
+        ? s.costsList.reduce((a, b) => a + b, 0) / s.costsList.length
+        : 0;
     }
 
     return stats;
   }, [cableArticles]);
 
-  // 3. Attach unified section cost to each cable article
+  // 3. Attach unified section cost according to active calcMode
   const cableRowsUnified = useMemo(() => {
     return cableArticles.map(c => {
       const secStat = sectionStats[c.section];
-      const costeUnificado = (secStat && secStat.weightedCost > 0) ? secStat.weightedCost : c.coste_individual;
+      const costeWeighted = secStat ? secStat.weightedCost : c.coste_individual;
+      const costeArithmetic = secStat ? secStat.arithmeticCost : c.coste_individual;
+      const costeUnificado = calcMode === 'WEIGHTED' ? costeWeighted : costeArithmetic;
+
       const valoracionUnificadaSeccion = (c.stock_unificado || 0) * costeUnificado;
       const diferenciaImporte = valoracionUnificadaSeccion - (c.valoracion_unificada || 0);
 
       return {
         ...c,
+        coste_weighted: costeWeighted,
+        coste_arithmetic: costeArithmetic,
         coste_unificado_seccion: costeUnificado,
         valoracion_unificada_seccion: valoracionUnificadaSeccion,
         diferencia_importe: diferenciaImporte
       };
     });
-  }, [cableArticles, sectionStats]);
+  }, [cableArticles, sectionStats, calcMode]);
 
   // 4. Filter Table 2 by section pill and local search
   const t2Filtered = useMemo(() => {
@@ -161,7 +191,7 @@ export default function Listin11View({ unifiedRows = [] }) {
     if (t2Search.trim()) {
       const term = t2Search.toLowerCase().trim();
       result = result.filter(r =>
-        ((r.cod_art || '') + ' ' + (r.ref_art || '') + ' ' + (r.nom_art || '') + ' ' + (r.section || '') + ' ' + (r.color || '')).toLowerCase().includes(term)
+        ((r.cod_art || '') + ' ' + (r.ref_art || '') + ' ' + (r.nom_art || '') + ' ' + (r.section || '') + ' ' + (r.color || '') + ' ' + (r.family || '')).toLowerCase().includes(term)
       );
     }
     return result;
@@ -189,6 +219,8 @@ export default function Listin11View({ unifiedRows = [] }) {
   const t2TotalStock = t2Sorted.reduce((sum, r) => sum + (r.stock_unificado || 0), 0);
   const t2TotalValOrig = t2Sorted.reduce((sum, r) => sum + (r.valoracion_unificada || 0), 0);
   const t2TotalValUnif = t2Sorted.reduce((sum, r) => sum + (r.valoracion_unificada_seccion || 0), 0);
+
+  const maxWeightedCost = Math.max(...TARGET_SECTIONS.map(s => sectionStats[s]?.weightedCost || 0), 1);
 
   const handleT1Sort = (field) => {
     if (t1SortField === field) setT1SortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -223,25 +255,51 @@ export default function Listin11View({ unifiedRows = [] }) {
   return (
     <div className="space-y-10">
 
-      {/* Banner Superior LISTIN 11 */}
+      {/* Banner Superior LISTIN 11 con Selector de Modo de Cálculo */}
       <div className="glass-panel p-5 border-l-4 border-l-amber-500 flex items-center justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="badge badge-purple text-xs font-bold font-mono">Grupo 1L</span>
             <span className="badge badge-blue text-xs font-bold font-mono">Subgrupo 11</span>
+            <span className="badge badge-amber text-xs font-bold font-mono">Conductores Unipolares</span>
           </div>
           <h2 className="text-xl font-extrabold text-white flex items-center gap-2.5">
             <Layers className="w-6 h-6 text-amber-400" />
-            <span>LISTIN 11 — Conductores Unipolares (Grupo 1L / Subgrupo 11)</span>
+            <span>LISTIN 11 — Unificación de Costes Medios por Sección</span>
           </h2>
           <p className="text-xs text-slate-300 mt-1">
-            Filtro exclusivo para el grupo <strong>1L</strong> y subgrupo <strong>11</strong>. Todos los colores de la misma sección (1 a 35 mm²) comparten un <strong>coste único ponderado por metro</strong>.
+            Filtro exclusivo para el grupo <strong>1L</strong> y subgrupo <strong>11</strong>. Todos los colores de la misma sección (1, 1.5, 2.5, 4, 6, 10, 16, 25, 35 mm²) comparten un <strong>único coste unificado por metro</strong>.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Switcher de Modo de Cálculo */}
+          <div className="bg-slate-950 p-1.5 rounded-xl border border-slate-800 flex items-center gap-1">
+            <button
+              onClick={() => setCalcMode('WEIGHTED')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                calcMode === 'WEIGHTED' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Media ponderada considerando el stock en metros de cada color"
+            >
+              <Zap className="w-3.5 h-3.5" />
+              <span>Media Ponderada por Stock</span>
+            </button>
+
+            <button
+              onClick={() => setCalcMode('ARITHMETIC')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                calcMode === 'ARITHMETIC' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
+              }`}
+              title="Media aritmética simple de los costes ficha de catálogo de los artículos de la sección"
+            >
+              <Calculator className="w-3.5 h-3.5" />
+              <span>Media Aritmética Simple</span>
+            </button>
+          </div>
+
           <div className="px-3 py-2 bg-slate-900/80 border border-slate-700/70 rounded-xl text-xs">
-            <span className="text-slate-400 block font-semibold">Artículos en Listín 11</span>
+            <span className="text-slate-400 block font-semibold">Artículos</span>
             <span className="text-lg font-bold text-sky-400 font-mono">{fmtN(listin11BaseRows.length)} refs</span>
           </div>
           <div className="px-3 py-2 bg-slate-900/80 border border-slate-700/70 rounded-xl text-xs">
@@ -252,6 +310,48 @@ export default function Listin11View({ unifiedRows = [] }) {
             <span className="text-slate-400 block font-semibold">Valoración Total</span>
             <span className="text-lg font-bold text-amber-400 font-mono">{fmtC(t1TotalVal)}</span>
           </div>
+        </div>
+      </div>
+
+      {/* =================================================================== */}
+      {/* SECCIÓN VISUALIZADORA EN BARRA: COMPARATIVA DE SECCIONES (INSPIRACIÓN GITHUB) */}
+      {/* =================================================================== */}
+      <div className="glass-panel p-5 border border-slate-800 rounded-2xl bg-slate-900/40">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-white flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-amber-400" />
+            <span>Visualizador de Costes Unificados por Sección (1 mm² a 35 mm²)</span>
+          </h3>
+          <span className="text-xs text-slate-400 font-mono">Modo Activo: <strong className="text-amber-400">{calcMode === 'WEIGHTED' ? 'Media Ponderada por Stock' : 'Media Aritmética de Ficha'}</strong></span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-9 gap-3">
+          {TARGET_SECTIONS.map(sec => {
+            const stat = sectionStats[sec] || { articlesCount: 0, totalStock: 0, weightedCost: 0, arithmeticCost: 0 };
+            const costVal = calcMode === 'WEIGHTED' ? stat.weightedCost : stat.arithmeticCost;
+            const pct = Math.min(100, Math.max(12, (costVal / maxWeightedCost) * 100));
+
+            return (
+              <div key={sec} className="bg-slate-950/80 p-3 rounded-xl border border-slate-800 flex flex-col justify-between space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-amber-400 font-mono">{sec} mm²</span>
+                  <span className="text-[10px] text-slate-400">{stat.articlesCount} refs</span>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="text-sm font-black text-white font-mono">{fmt(costVal)}</div>
+                  <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div className="bg-gradient-to-r from-amber-500 to-emerald-400 h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1 border-t border-slate-800/60 font-mono">
+                  <span>Stock:</span>
+                  <span className="text-emerald-400 font-semibold">{fmtN(stat.totalStock)} m</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -388,38 +488,13 @@ export default function Listin11View({ unifiedRows = [] }) {
                 <span>TABLA 2: Costes Ponderados Unificados por Sección (Grupo 1L / Subgrupo 11)</span>
               </h3>
               <p className="text-xs text-slate-300 mt-1">
-                Media de costes unificando colores: Para el subgrupo 11, todos los colores de la misma sección (ej. 1, 1.5, 2.5, 4, 6, 10, 16, 25, 35 mm²) comparten el <strong>mismo coste ponderado por metro</strong>.
+                Media de costes unificando colores: Para el subgrupo 11, todos los colores de la misma sección (ej. 1, 1.5, 2.5, 4, 6, 10, 16, 25, 35 mm²) comparten el <strong>mismo coste unificado por metro</strong> ({calcMode === 'WEIGHTED' ? 'Media Ponderada por Stock' : 'Media Aritmética Simple de Ficha'}).
               </p>
             </div>
             <div className="flex items-center gap-2">
               <span className="badge badge-amber text-xs font-mono">{cableArticles.length} artículos unipolares</span>
             </div>
           </div>
-        </div>
-
-        {/* Target Section Cards Grid (1 a 35 mm²) */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2.5">
-          {TARGET_SECTIONS.map(sec => {
-            const stat = sectionStats[sec] || { articlesCount: 0, totalStock: 0, weightedCost: 0 };
-            const isSelected = selectedSectionFilter === sec;
-
-            return (
-              <div
-                key={sec}
-                onClick={() => setSelectedSectionFilter(prev => prev === sec ? 'ALL' : sec)}
-                className={`glass-panel p-3 cursor-pointer transition-all border ${
-                  isSelected ? 'border-amber-400 bg-amber-500/20 shadow-lg scale-105' : 'border-slate-800 hover:border-slate-600 bg-slate-900/60'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono font-bold text-amber-400">{sec} mm²</span>
-                  <span className="text-[10px] text-slate-400">{stat.articlesCount} refs</span>
-                </div>
-                <div className="text-sm font-extrabold text-white font-mono">{fmt(stat.weightedCost)}</div>
-                <div className="text-[10px] text-slate-400 mt-0.5">{fmtN(stat.totalStock)} m</div>
-              </div>
-            );
-          })}
         </div>
 
         {/* Table 2 View */}
@@ -493,11 +568,12 @@ export default function Listin11View({ unifiedRows = [] }) {
                   <Th2 field="cod_art" label="Código Artículo" />
                   <Th2 field="ref_art" label="Ref. Fabricante" />
                   <Th2 field="nom_art" label="Descripción Comercial Cable" />
+                  <Th2 field="family" label="Familia" align="center" />
                   <Th2 field="section" label="Sección mm²" align="center" />
                   <Th2 field="color" label="Color Conductor" align="center" />
                   <Th2 field="stock_unificado" label="Stock (m)" align="right" />
                   <Th2 field="coste_individual" label="Coste Original ERP (€/m)" align="right" />
-                  <Th2 field="coste_unificado_seccion" label="Coste Unificado Sección (€/m)" align="right" />
+                  <Th2 field="coste_unificado_seccion" label={`Coste Unificado Sección (€/m) [${calcMode === 'WEIGHTED' ? 'Ponderado' : 'Aritmético'}]`} align="right" />
                   <Th2 field="valoracion_unificada_seccion" label="Valoración Unificada (€)" align="right" />
                   <Th2 field="diferencia_importe" label="Dif. Valoración (€)" align="right" />
                 </tr>
@@ -505,7 +581,7 @@ export default function Listin11View({ unifiedRows = [] }) {
               <tbody className="divide-y divide-slate-800/60 text-xs">
                 {t2Paginated.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="text-center py-12 text-slate-400 text-sm">
+                    <td colSpan={11} className="text-center py-12 text-slate-400 text-sm">
                       <AlertCircle className="w-8 h-8 mx-auto mb-2 text-slate-500" />
                       No se encontraron conductores del Grupo 1L / Subgrupo 11 con los filtros seleccionados.
                     </td>
@@ -517,6 +593,11 @@ export default function Listin11View({ unifiedRows = [] }) {
                       <td className="px-3 py-2 font-mono text-slate-300 font-semibold whitespace-nowrap">{r.ref_art || '—'}</td>
                       <td className="px-3 py-2 text-slate-200 font-medium max-w-sm truncate" title={r.nom_art}>
                         {r.nom_art}
+                      </td>
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-900 border border-slate-700 text-purple-300">
+                          {r.family}
+                        </span>
                       </td>
                       <td className="px-3 py-2 text-center font-mono font-extrabold text-amber-400 whitespace-nowrap">
                         {r.section !== 'OTRA' ? `${r.section} mm²` : '—'}
@@ -544,7 +625,7 @@ export default function Listin11View({ unifiedRows = [] }) {
               {t2Sorted.length > 0 && (
                 <tfoot>
                   <tr className="bg-slate-900 font-bold text-xs text-slate-300 border-t-2 border-slate-700 sticky bottom-0">
-                    <td colSpan={5} className="px-3 py-3">Selección: {fmtN(t2Sorted.length)} artículos de cable (Grupo 1L / Subgrupo 11)</td>
+                    <td colSpan={6} className="px-3 py-3">Selección: {fmtN(t2Sorted.length)} artículos de cable (Grupo 1L / Subgrupo 11)</td>
                     <td className="px-3 py-3 text-right font-mono text-emerald-400 text-sm whitespace-nowrap">{fmtN(t2TotalStock)} m</td>
                     <td className="px-3 py-3 text-right text-slate-400">Total Valoración Unificada:</td>
                     <td colSpan={2} className="px-3 py-3 text-right font-mono text-amber-400 text-base font-extrabold whitespace-nowrap bg-amber-500/20">{fmtC(t2TotalValUnif)}</td>
