@@ -6,7 +6,7 @@ import ArticlesTable from './components/ArticlesTable';
 import UnifiedCostTable from './components/UnifiedCostTable';
 import PurchasingManagementTable from './components/PurchasingManagementTable';
 import DelegationsBreakdown from './components/DelegationsBreakdown';
-import Listin11View from './components/Listin11View';
+import Listin11View, { parseCableSectionAndColor } from './components/Listin11View';
 import ApiConnectorView from './components/ApiConnectorView';
 import DataTrustBar from './components/DataTrustBar';
 import {
@@ -136,109 +136,114 @@ export default function App() {
   }, [pendingScroll, tabla1Ref]);
 
   const handleExportExcel = () => {
-    // Hoja 1: detalle por artículo + empresa + delegación
-    const exportData = rows.map(r => ({
-      'Código Artículo': r.cod_art,
-      'Referencia': r.ref_art,
-      'Descripción Oficial': r.nom_art,
-      'Marca': r.nom_mar || r.cod_mar,
-      'Grupo': r.nom_grc || r.cod_grc,
-      'Subgrupo': r.nom_gru || r.cod_gru,
-      'Empresa': r.empresa_nombre || r.empresa_id,
-      'Delegación': r.delegacion_nombre || r.delegacion_id,
-      'Coste de ficha (cos_art)': r.sin_coste ? null : r.cos_art,
-      'Stock disponible (stock_disp)': r.stock_disp,
-      'Valoración': r.sin_coste ? null : r.valoracion,
-      'Sin coste': r.sin_coste ? 'Sí' : 'No',
-      'Fecha datos': r.fecha_actualizacion || status?.extractedAt || ''
-    }));
+    try {
+      // Hoja 1: detalle por artículo + empresa + delegación
+      const exportData = rows.map(r => ({
+        'Código Artículo': r.cod_art,
+        'Referencia': r.ref_art,
+        'Descripción Oficial': r.nom_art,
+        'Marca': r.nom_mar || r.cod_mar,
+        'Grupo': r.nom_grc || r.cod_grc,
+        'Subgrupo': r.nom_gru || r.cod_gru,
+        'Empresa': r.empresa_nombre || r.empresa_id,
+        'Delegación': r.delegacion_nombre || r.delegacion_id,
+        'Coste de ficha (cos_art)': r.sin_coste ? null : r.cos_art,
+        'Stock disponible (stock_disp)': r.stock_disp,
+        'Valoración': r.sin_coste ? null : r.valoracion,
+        'Sin coste': r.sin_coste ? 'Sí' : 'No',
+        'Fecha datos': r.fecha_actualizacion || status?.extractedAt || ''
+      }));
 
-    // Hoja 2: coste medio unificado general
-    const unifiedData = unifiedRows.map(u => ({
-      'Código Artículo': u.cod_art,
-      'Referencia': u.ref_art,
-      'Descripción Oficial': u.nom_art,
-      'Marca': u.nom_mar,
-      'Grupo': u.nom_grc,
-      'Subgrupo': u.nom_gru,
-      'Empresas incluidas': u.empresas,
-      'Delegaciones incluidas': u.delegaciones,
-      'Stock unificado': u.stock_unificado,
-      'Coste medio unificado': u.coste_medio_unificado,
-      'Valoración unificada': u.valoracion_unificada,
-      'Diferencia de coste': u.diferencia_coste,
-      'Coste mínimo': u.coste_min,
-      'Coste máximo': u.coste_max,
-      'Fecha datos': u.fecha_actualizacion || status?.extractedAt || ''
-    }));
+      // Hoja 2: coste medio unificado general
+      const unifiedData = unifiedRows.map(u => ({
+        'Código Artículo': u.cod_art,
+        'Referencia': u.ref_art,
+        'Descripción Oficial': u.nom_art,
+        'Marca': u.nom_mar,
+        'Grupo': u.nom_grc,
+        'Subgrupo': u.nom_gru,
+        'Empresas incluidas': u.empresas,
+        'Delegaciones incluidas': u.delegaciones,
+        'Stock unificado': u.stock_unificado,
+        'Coste medio unificado': u.coste_medio_unificado,
+        'Valoración unificada': u.valoracion_unificada,
+        'Diferencia de coste': u.diferencia_coste,
+        'Coste mínimo': u.coste_min,
+        'Coste máximo': u.coste_max,
+        'Fecha datos': u.fecha_actualizacion || status?.extractedAt || ''
+      }));
 
-    // Hoja 3: LISTIN 11 (Grupo 1L y Subgrupo 11) - Cables con costes unificados por sección
-    const listin11Base = masterUnifiedRows.filter(r => {
-      const grc = (r.cod_grc || '').toString().trim().toUpperCase();
-      const gru = (r.cod_gru || '').toString().trim();
-      return grc === '1L' && gru === '11';
-    });
+      // Hoja 3: LISTIN 11 (Grupo 1L y Subgrupo 11) - Cables con costes unificados por sección
+      const listin11Base = masterUnifiedRows.filter(r => {
+        const grc = (r.cod_grc || r.nom_grc || '').toString().trim().toUpperCase();
+        const gru = (r.cod_gru || r.nom_gru || '').toString().trim().replace(/^0+/, '');
+        return (grc === '1L' || grc.startsWith('1L')) && (gru === '11' || gru === '011' || gru.endsWith('11'));
+      });
 
-    const cableSectionStats = {};
-    const cableArticles = [];
+      const cableSectionStats = {};
+      const cableArticles = [];
 
-    for (const u of listin11Base) {
-      const parsed = parseCableSectionAndColor(u.nom_art);
-      cableArticles.push({ ...u, section: parsed.section, color: parsed.color });
-      if (!cableSectionStats[parsed.section]) {
-        cableSectionStats[parsed.section] = { stock: 0, val: 0 };
+      for (const u of listin11Base) {
+        const parsed = parseCableSectionAndColor(u.nom_art);
+        cableArticles.push({ ...u, section: parsed.section, color: parsed.color });
+        if (!cableSectionStats[parsed.section]) {
+          cableSectionStats[parsed.section] = { stock: 0, val: 0 };
+        }
+        cableSectionStats[parsed.section].stock += u.stock_unificado || 0;
+        cableSectionStats[parsed.section].val += u.valoracion_unificada || 0;
       }
-      cableSectionStats[parsed.section].stock += u.stock_unificado || 0;
-      cableSectionStats[parsed.section].val += u.valoracion_unificada || 0;
+
+      const listin11ExportData = cableArticles.map(c => {
+        const st = cableSectionStats[c.section] || { stock: 0, val: 0 };
+        const costeUnif = st.stock > 0 ? st.val / st.stock : (c.coste_medio_unificado || 0);
+        const valUnif = (c.stock_unificado || 0) * costeUnif;
+        return {
+          'Código Artículo': c.cod_art,
+          'Ref Fabricante': c.ref_art,
+          'Descripción Comercial Cable': c.nom_art,
+          'Sección mm²': c.section !== 'OTRA' ? `${c.section} mm²` : '—',
+          'Color Conductor': c.color,
+          'Stock Unificado (m)': c.stock_unificado,
+          'Coste Original ERP (€/m)': c.coste_medio_unificado,
+          'Coste Unificado Sección (€/m)': costeUnif,
+          'Valoración Original (€)': c.valoracion_unificada,
+          'Valoración Unificada Sección (€)': valUnif,
+          'Diferencia (€)': valUnif - (c.valoracion_unificada || 0)
+        };
+      });
+
+      // Hoja 4: Pedidos pendientes de recepcionar
+      const ordersData = (pendingOrders || []).map(p => ({
+        'Nº Pedido': p.pedido_id,
+        'Línea': p.linea_num,
+        'Fecha Pedido': p.fecha_pedido,
+        'Proveedor / Razón Social': p.razon_social,
+        'Código Artículo': p.cod_art,
+        'Ref Fabricante': p.ref_art,
+        'Descripción Comercial ERP': p.nom_art,
+        'Marca': p.nom_mar,
+        'Empresa': p.empresa_nombre || p.empresa_id,
+        'Delegación': p.delegacion_nombre || p.delegacion_id,
+        'Unidades Pedidas': p.unidades_pedidas,
+        'Unidades Servidas': p.unidades_servidas,
+        'Unidades Pendientes': p.unidades_pendientes,
+        'Unidad Medida': p.unidad_medida,
+        'Precio Tarifa': p.precio_unitario,
+        'Descuento %': p.descuento_pct,
+        'Importe Línea Total (€)': p.importe_linea_total,
+        'Importe Pendiente Recepcionar (€)': p.importe_pendiente
+      }));
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportData), 'Detalle Artículos');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(unifiedData), 'Lista Unificada General');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(listin11ExportData), 'LISTIN 11 (Grupo 1L-11)');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ordersData), 'Pedidos Pendientes');
+      XLSX.writeFile(wb, `LISTIN_11_Costes_y_Compras_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      console.error('Error al exportar a Excel:', err);
+      alert('Error al generar el archivo Excel. Por favor reintente.');
     }
-
-    const listin11ExportData = cableArticles.map(c => {
-      const st = cableSectionStats[c.section] || { stock: 0, val: 0 };
-      const costeUnif = st.stock > 0 ? st.val / st.stock : (c.coste_medio_unificado || 0);
-      const valUnif = (c.stock_unificado || 0) * costeUnif;
-      return {
-        'Código Artículo': c.cod_art,
-        'Ref Fabricante': c.ref_art,
-        'Descripción Comercial Cable': c.nom_art,
-        'Sección mm²': c.section !== 'OTRA' ? `${c.section} mm²` : '—',
-        'Color Conductor': c.color,
-        'Stock Unificado (m)': c.stock_unificado,
-        'Coste Original ERP (€/m)': c.coste_medio_unificado,
-        'Coste Unificado Sección (€/m)': costeUnif,
-        'Valoración Original (€)': c.valoracion_unificada,
-        'Valoración Unificada Sección (€)': valUnif,
-        'Diferencia (€)': valUnif - (c.valoracion_unificada || 0)
-      };
-    });
-
-    // Hoja 4: Pedidos pendientes de recepcionar
-    const ordersData = filteredPendingOrders.map(p => ({
-      'Nº Pedido': p.pedido_id,
-      'Línea': p.linea_num,
-      'Fecha Pedido': p.fecha_pedido,
-      'Proveedor / Razón Social': p.razon_social,
-      'Código Artículo': p.cod_art,
-      'Ref Fabricante': p.ref_art,
-      'Descripción Comercial ERP': p.nom_art,
-      'Marca': p.nom_mar,
-      'Empresa': p.empresa_nombre || p.empresa_id,
-      'Delegación': p.delegacion_nombre || p.delegacion_id,
-      'Unidades Pedidas': p.unidades_pedidas,
-      'Unidades Servidas': p.unidades_servidas,
-      'Unidades Pendientes': p.unidades_pendientes,
-      'Unidad Medida': p.unidad_medida,
-      'Precio Tarifa': p.precio_unitario,
-      'Descuento %': p.descuento_pct,
-      'Importe Línea Total (€)': p.importe_linea_total,
-      'Importe Pendiente Recepcionar (€)': p.importe_pendiente
-    }));
-
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportData), 'Detalle Artículos');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(unifiedData), 'Lista Unificada General');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(listin11ExportData), 'LISTIN 11 (Grupo 1L-11)');
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ordersData), 'Pedidos Pendientes');
-    XLSX.writeFile(wb, `LISTIN_11_Costes_y_Compras_${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   return (
