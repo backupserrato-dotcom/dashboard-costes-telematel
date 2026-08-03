@@ -1,55 +1,96 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Euro, TrendingUp, Layers, AlertTriangle, XCircle, FileText } from 'lucide-react';
 
-const KpiCard = ({ icon: Icon, iconColor, bgColor, label, value, sub, subColor }) => (
-  <div className="kpi-card">
-    <div className="kpi-glow" style={{ background: `linear-gradient(90deg, transparent, ${iconColor}80, transparent)` }} />
-    <div>
-      <p className="kpi-label">{label}</p>
-      <p className="kpi-value">{value}</p>
-      {sub && <p className="kpi-sub" style={{ color: subColor || '#64748b' }}>{sub}</p>}
+const KpiCard = ({ icon: Icon, iconColor, bgColor, label, rawValue, formatter, sub, subColor, barPct }) => {
+  const [hovered, setHovered] = useState(false);
+  const [animatedValue, setAnimatedValue] = useState(0);
+
+  useEffect(() => {
+    let start;
+    const duration = 1200;
+    
+    const step = (timestamp) => {
+      if (!start) start = timestamp;
+      const progress = timestamp - start;
+      const pct = Math.min(progress / duration, 1);
+      // easeOut function
+      const easePct = 1 - Math.pow(1 - pct, 3);
+      setAnimatedValue(rawValue * easePct);
+      
+      if (progress < duration) {
+        requestAnimationFrame(step);
+      } else {
+        setAnimatedValue(rawValue);
+      }
+    };
+    
+    requestAnimationFrame(step);
+  }, [rawValue]);
+
+  const shadow = hovered ? `0 0 30px -6px ${iconColor}50` : `0 0 0px transparent`;
+
+  return (
+    <div 
+      className="kpi-card" 
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{ boxShadow: shadow, transition: 'box-shadow 0.3s ease' }}
+    >
+      <div className="kpi-glow" style={{ background: `linear-gradient(90deg, transparent, ${iconColor}80, transparent)` }} />
+      <div>
+        <p className="kpi-label">{label}</p>
+        <p className="kpi-value">{formatter(animatedValue)}</p>
+        {sub && <p className="kpi-sub" style={{ color: subColor || '#64748b' }}>{sub}</p>}
+        {barPct !== undefined && (
+          <div className="kpi-bar-track" style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', marginTop: '8px', overflow: 'hidden' }}>
+            <div className="kpi-bar-fill" style={{ width: `${Math.min(100, Math.max(0, barPct))}%`, height: '100%', background: iconColor, borderRadius: '2px', transition: 'width 1s ease-out' }} />
+          </div>
+        )}
+      </div>
+      <div className="kpi-icon" style={{ background: bgColor, border: `1px solid ${iconColor}30` }}>
+        <Icon style={{ width: 22, height: 22, color: iconColor }} />
+      </div>
     </div>
-    <div className="kpi-icon" style={{ background: bgColor, border: `1px solid ${iconColor}30` }}>
-      <Icon style={{ width: 22, height: 22, color: iconColor }} />
-    </div>
-  </div>
-);
+  );
+};
 
 export default function KpiCards({ kpis }) {
   const fmt = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 2 }).format(v || 0);
   const fmtN = (v) => new Intl.NumberFormat('es-ES').format(v || 0);
   const fmtC = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
 
+  const total = kpis.totalFilas || 1;
+
   const cards = [
     {
       icon: FileText, iconColor: '#38bdf8', bgColor: 'rgba(14,165,233,0.1)',
-      label: 'Filas de detalle', value: fmtN(kpis.totalFilas),
-      sub: `${kpis.totalArticles} artículos únicos`, subColor: '#38bdf8'
+      label: 'Filas de detalle', rawValue: kpis.totalFilas || 0, formatter: fmtN,
+      sub: `${kpis.totalArticles || 0} artículos únicos`, subColor: '#38bdf8', barPct: 100
     },
     {
       icon: Euro, iconColor: '#34d399', bgColor: 'rgba(52,211,153,0.1)',
-      label: 'Valoración', value: fmtC(kpis.totalValuation),
-      sub: 'Σ cos_art × stock_disp', subColor: '#34d399'
+      label: 'Valoración', rawValue: kpis.totalValuation || 0, formatter: fmtC,
+      sub: 'Σ cos_art × stock_disp', subColor: '#34d399', barPct: 100
     },
     {
       icon: TrendingUp, iconColor: '#818cf8', bgColor: 'rgba(99,102,241,0.1)',
-      label: 'Coste medio (aritm.)', value: fmt(kpis.averageCost),
-      sub: 'Solo filas con coste', subColor: '#818cf8'
+      label: 'Coste medio (aritm.)', rawValue: kpis.averageCost || 0, formatter: fmt,
+      sub: 'Solo filas con coste', subColor: '#818cf8', barPct: 100
     },
     {
       icon: Layers, iconColor: '#c084fc', bgColor: 'rgba(168,85,247,0.1)',
-      label: 'Stock disponible', value: fmtN(kpis.totalStockUnits),
-      sub: 'Σ stock_disp de las filas', subColor: '#c084fc'
+      label: 'Stock disponible', rawValue: kpis.totalStockUnits || 0, formatter: fmtN,
+      sub: 'Σ stock_disp de las filas', subColor: '#c084fc', barPct: 100
     },
     {
       icon: AlertTriangle, iconColor: '#fbbf24', bgColor: 'rgba(251,191,36,0.1)',
-      label: 'Sin coste', value: fmtN(kpis.sinCoste),
-      sub: `de ${kpis.totalFilas} filas`, subColor: '#fbbf24'
+      label: 'Sin coste', rawValue: kpis.sinCoste || 0, formatter: fmtN,
+      sub: `de ${kpis.totalFilas || 0} filas`, subColor: '#fbbf24', barPct: ((kpis.sinCoste || 0) / total) * 100
     },
     {
       icon: XCircle, iconColor: '#f43f5e', bgColor: 'rgba(244,63,94,0.1)',
-      label: 'Sin existencias', value: fmtN(kpis.sinStock),
-      sub: `de ${kpis.totalFilas} filas`, subColor: '#f43f5e'
+      label: 'Sin existencias', rawValue: kpis.sinStock || 0, formatter: fmtN,
+      sub: `de ${kpis.totalFilas || 0} filas`, subColor: '#f43f5e', barPct: ((kpis.sinStock || 0) / total) * 100
     },
   ];
 

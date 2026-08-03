@@ -24,21 +24,35 @@ export default function Navbar({
     : '—';
 
   return (
-    <header className="header-glow sticky top-0 z-50">
+    <header className="header-glow sticky top-0 z-50 relative">
+      <style>{`
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+      `}</style>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
 
           {/* Logo & Title */}
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-indigo-600/20 border border-indigo-500/40 rounded-xl text-indigo-400">
+            <div 
+              className="p-2.5 rounded-xl text-indigo-400"
+              style={{ background: 'linear-gradient(135deg, rgba(79,70,229,0.3) 0%, rgba(99,102,241,0.15) 100%)', border: '1px solid rgba(99,102,241,0.4)', boxShadow: '0 0 20px rgba(99,102,241,0.2)' }}
+            >
               <Database className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white tracking-tight">Dashboard Costes Medios & Compras</h1>
+                <h1 
+                  className="text-xl font-bold tracking-tight"
+                  style={{ background: 'linear-gradient(135deg, #e0e7ff 0%, #818cf8 40%, #38bdf8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}
+                >
+                  Dashboard Costes Medios & Compras
+                </h1>
                 <span className="badge badge-purple text-xs">
                   {isLive ? 'ERP en vivo' : 'Caché'}
                 </span>
+                {!loading && (
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 8px #34d399', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                )}
                 {isStale && <span className="badge badge-amber text-xs">Caché antigua</span>}
               </div>
               <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
@@ -104,6 +118,9 @@ export default function Navbar({
           <TabButton active={activeTab === 'api'} onClick={() => setActiveTab('api')} icon={ShieldCheck} label="Conector ODBC" />
         </div>
       </div>
+      {loading && (
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, background: 'linear-gradient(90deg, #6366f1, #38bdf8, #6366f1)', backgroundSize: '200% 100%', animation: 'shimmer 1.5s infinite' }} />
+      )}
     </header>
   );
 }
@@ -113,8 +130,9 @@ function TabButton({ active, onClick, icon: Icon, label }) {
     <button
       onClick={onClick}
       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap ${
-        active ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+        active ? '' : 'text-slate-400 hover:text-white hover:bg-slate-800'
       }`}
+      style={active ? { background: 'linear-gradient(135deg, rgba(79,70,229,0.3) 0%, rgba(56,189,248,0.1) 100%)', borderBottom: '2px solid #6366f1', color: 'white', boxShadow: '0 4px 15px rgba(99,102,241,0.2)' } : undefined}
     >
       <Icon className="w-4 h-4" />
       <span>{label}</span>
