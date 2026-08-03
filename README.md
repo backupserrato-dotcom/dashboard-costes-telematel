@@ -42,6 +42,27 @@ http://<IP-DEL-SERVIDOR>:3000
 
 ---
 
+## 🪟 Edición portátil para Windows (sin instalar Node.js)
+
+El paquete `DashboardCostes-Portable-win-x64.zip` incluye el runtime, el servidor,
+la interfaz compilada y los datos en caché.
+
+1. Descargue y extraiga completamente el ZIP.
+2. Ejecute `DashboardCostes.exe`.
+3. El dashboard se abrirá en `http://localhost:3000`.
+
+La consulta de los datos incluidos funciona sin instalaciones adicionales. La
+actualización directa desde Telematel requiere el controlador Progress OpenEdge
+11.7 ODBC x64, los DSN corporativos y acceso de red al ERP.
+
+Para construir el paquete desde el repositorio:
+
+```powershell
+npm run package:windows
+```
+
+---
+
 ## 💻 Desarrollo y Ejecución Local sin Docker
 
 ### 1. Instalar Dependencias
