@@ -85,14 +85,92 @@ export default function Listin11View({ unifiedRows = [] }) {
   const [t2Search, setT2Search] = useState('');
   const [selectedSectionFilter, setSelectedSectionFilter] = useState('ALL');
 
-  // CRITICAL USER DIRECTIVE: Filter LISTIN 11 strictly to Grupo 1L (or 1l) and Subgrupo 11
-  const listin11BaseRows = useMemo(() => {
-    return unifiedRows.filter(r => {
+  const [directRows, setDirectRows] = useState([]);
+  const [loadingDirect, setLoadingDirect] = useState(false);
+
+  // Auto-fetch fallback: If unifiedRows has no 1L/11 articles (e.g. while allRows is loading or if FilterBar filtered them out),
+  // fetch 1L/11 data directly from the server so LISTIN 11 is ALWAYS populated.
+  useEffect(() => {
+    const has1L11 = (unifiedRows || []).some(r => {
       const grc = (r.cod_grc || r.nom_grc || '').toString().trim().toUpperCase();
       const gru = (r.cod_gru || r.nom_gru || '').toString().trim();
       return (grc === '1L' || grc.startsWith('1L')) && (gru === '11' || gru.endsWith('11'));
     });
-  }, [unifiedRows]);
+
+    if (!has1L11 && directRows.length === 0) {
+      setLoadingDirect(true);
+      fetch('/api/incremental-sync?grupoMarca=1L&subgrupo=11')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.success && Array.isArray(data.data)) {
+            const map = new Map();
+            for (const r of data.data) {
+              const cos = Number(r.cos_art || 0) || 0;
+              const sinCoste = !!r.sin_coste || cos <= 0;
+              const stock = Number(r.stock_disp || 0) || 0;
+              const val = Number(r.valoracion || 0) || (cos * stock);
+
+              if (!map.has(r.cod_art)) {
+                map.set(r.cod_art, {
+                  cod_art: r.cod_art || '',
+                  ref_art: r.ref_art || '',
+                  nom_art: r.nom_art || '',
+                  cod_mar: r.cod_mar || '',
+                  nom_mar: r.nom_mar || '',
+                  cod_grc: r.cod_grc || '1L',
+                  nom_grc: r.nom_grc || r.cod_grc || '1L',
+                  cod_gru: r.cod_gru || '11',
+                  nom_gru: r.nom_gru || r.cod_gru || '11',
+                  stock_unificado: 0,
+                  valoracion_unificada: 0,
+                  costes: []
+                });
+              }
+              const u = map.get(r.cod_art);
+              u.stock_unificado += stock;
+              u.valoracion_unificada += val;
+              if (!sinCoste) u.costes.push(cos);
+            }
+
+            const unif = [];
+            for (const u of map.values()) {
+              const costes = u.costes;
+              const costeMedio = u.stock_unificado > 0 ? u.valoracion_unificada / u.stock_unificado : null;
+              unif.push({
+                cod_art: u.cod_art,
+                ref_art: u.ref_art,
+                nom_art: u.nom_art,
+                cod_mar: u.cod_mar,
+                nom_mar: u.nom_mar,
+                cod_grc: u.cod_grc,
+                nom_grc: u.nom_grc,
+                cod_gru: u.cod_gru,
+                nom_gru: u.nom_gru,
+                stock_unificado: u.stock_unificado,
+                valoracion_unificada: u.valoracion_unificada,
+                coste_medio_unificado: costeMedio,
+                diferencia_coste: costes.length > 1 ? 'Sí' : 'No'
+              });
+            }
+            setDirectRows(unif);
+          }
+        })
+        .catch(err => console.warn('Direct 1L11 fetch error:', err))
+        .finally(() => setLoadingDirect(false));
+    }
+  }, [unifiedRows, directRows.length]);
+
+  // Combined Rows for Listin 11
+  const effectiveUnifiedRows = useMemo(() => {
+    const fromProps = (unifiedRows || []).filter(r => {
+      const grc = (r.cod_grc || r.nom_grc || '').toString().trim().toUpperCase();
+      const gru = (r.cod_gru || r.nom_gru || '').toString().trim();
+      return (grc === '1L' || grc.startsWith('1L')) && (gru === '11' || gru.endsWith('11'));
+    });
+    return fromProps.length > 0 ? fromProps : directRows;
+  }, [unifiedRows, directRows]);
+
+  const listin11BaseRows = effectiveUnifiedRows;
 
   // --- TABLA 2: Cable Section Unification (Grupo 1L / Subgrupo 11) ---
   // 1. Attach parsed section, color and family
@@ -253,11 +331,13 @@ export default function Listin11View({ unifiedRows = [] }) {
 
   const sectionChartData = TARGET_SECTIONS.map(sec => {
     const stat = sectionStats[sec] || { weightedCost: 0, arithmeticCost: 0, totalStock: 0, articlesCount: 0 };
+    const rawVal = calcMode === 'WEIGHTED' ? stat.weightedCost : stat.arithmeticCost;
+    const numVal = Number(rawVal) || 0;
     return {
       section: `${sec} mm²`,
-      coste: parseFloat((calcMode === 'WEIGHTED' ? stat.weightedCost : stat.arithmeticCost).toFixed(4)),
-      stock: stat.totalStock,
-      refs: stat.articlesCount
+      coste: parseFloat(numVal.toFixed(4)),
+      stock: stat.totalStock || 0,
+      refs: stat.articlesCount || 0
     };
   });
 
