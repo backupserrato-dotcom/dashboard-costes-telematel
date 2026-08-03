@@ -88,21 +88,11 @@ export default function Listin11View({ unifiedRows = [] }) {
   // CRITICAL USER DIRECTIVE: Filter LISTIN 11 strictly to Grupo 1L (or 1l) and Subgrupo 11
   const listin11BaseRows = useMemo(() => {
     return unifiedRows.filter(r => {
-      const grc = (r.cod_grc || '').toString().trim().toUpperCase();
-      const gru = (r.cod_gru || '').toString().trim();
-      return grc === '1L' && gru === '11';
+      const grc = (r.cod_grc || r.nom_grc || '').toString().trim().toUpperCase();
+      const gru = (r.cod_gru || r.nom_gru || '').toString().trim();
+      return (grc === '1L' || grc.startsWith('1L')) && (gru === '11' || gru.endsWith('11'));
     });
   }, [unifiedRows]);
-
-  // --- TABLA 1: Lista unificada con coste recalculado por sección ---
-  // Usamos cableRowsUnified (calculado en la sección inferior) para que
-  // todos los cables de la misma sección muestren EXACTAMENTE el mismo coste unificado.
-  // NOTA: cableRowsUnified se define después, así que usamos un useMemo que depende de él.
-  // Lo definimos aquí como referencia tardía — React resuelve el orden en el render.
-  const t1Filtered = useMemo(() => {
-    // cableRowsUnified se define en el bloque siguiente; esta referencia se resuelve en render
-    return [];
-  }, []); // placeholder — ver t1FilteredFinal debajo
 
   // --- TABLA 2: Cable Section Unification (Grupo 1L / Subgrupo 11) ---
   // 1. Attach parsed section, color and family
