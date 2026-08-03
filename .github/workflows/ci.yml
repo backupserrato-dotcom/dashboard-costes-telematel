@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   validate:
-    name: Lint y compilación
+    name: Pruebas, lint y compilación
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -34,6 +34,9 @@ jobs:
 
       - name: Analizar código
         run: npm run lint
+
+      - name: Ejecutar pruebas
+        run: npm test
 
       - name: Compilar aplicación
         run: npm run build
