@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  dashboard-costes:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dashboard-costes-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      - TLM_DSN=tlmplusV11
+      - TLM_DSN_INCREMENTAL=tlmplus1V11
+      - TLM_USER=userSQL
+      - TLM_PASSWORD=userSQL
+      - TLM_HOST_NAME=dataserver
+      - TLM_HOST_IP=192.168.1.3
+    volumes:
+      - ./datos_costes_actualizados.json:/app/datos_costes_actualizados.json
+      - ./datos_pedidos_pendientes.json:/app/datos_pedidos_pendientes.json
+      - ./datos_costes_calidad.json:/app/datos_costes_calidad.json
+    extra_hosts:
+      - "dataserver:192.168.1.3"
