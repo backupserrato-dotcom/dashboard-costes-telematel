@@ -1,0 +1,38 @@
+DASHBOARD COSTES MEDIOS - EDICION PORTATIL WINDOWS X64
+======================================================
+
+EJECUCION
+1. Extraiga todo el contenido del ZIP en una carpeta local.
+2. Abra DashboardCostes.exe.
+3. El navegador mostrara http://localhost:3000.
+
+No es necesario instalar Node.js. El runtime esta incluido en la carpeta
+runtime y solo lo utiliza este dashboard.
+
+REQUISITOS
+- Windows 10/11 o Windows Server de 64 bits.
+- Acceso de red al equipo dataserver (192.168.1.3) para consultar el ERP.
+- Para usar "Consultar ERP ahora": controlador Progress OpenEdge 11.7 ODBC
+  de 64 bits y los DSN tlmplusV11 / tlmplus1V11 configurados en el equipo.
+- Sin ODBC, el dashboard sigue funcionando con los datos JSON incluidos.
+
+ACCESO DESDE OTROS EQUIPOS
+El servidor escucha en el puerto TCP 3000. Para acceder desde otro ordenador:
+http://IP-DEL-EQUIPO-QUE-EJECUTA-EL-DASHBOARD:3000
+
+Windows Defender Firewall puede solicitar permiso la primera vez. Permita el
+acceso solo en redes privadas/corporativas.
+
+CONFIGURACION OPCIONAL
+Se puede crear un archivo .env junto a DashboardCostes.exe:
+
+TLM_DSN=tlmplusV11
+TLM_DSN_INCREMENTAL=tlmplus1V11
+TLM_USER=userSQL
+TLM_PASSWORD=userSQL
+TLM_HOST_NAME=dataserver
+TLM_HOST_IP=192.168.1.3
+
+SEGURIDAD
+No copie credenciales reales dentro del ZIP distribuido. Use .env únicamente
+en los equipos autorizados.
