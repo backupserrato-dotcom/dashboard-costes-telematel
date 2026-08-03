@@ -349,16 +349,28 @@ function applyFilters(cache, q) {
     }
   }
 
+  const gruposUpper = grupos ? grupos.map(g => g.toUpperCase()) : null;
+
   const filtered = cache.filter(a => {
-    const aG = a.cod_grc || '';
-    if (grupos && !grupos.includes(aG)) return false;
+    const aG = (a.cod_grc || a.nom_grc || '').toString().trim().toUpperCase();
+    if (gruposUpper && !gruposUpper.some(g => g === aG || aG.startsWith(g))) return false;
     if (marcas && !marcas.includes(a.cod_mar || a.nom_mar || '')) return false;
 
     if (subgrupoPorGrupo) {
-      const aS = a.cod_gru || '';
-      const gSet = subgrupoPorGrupo[aS];
-      if (gSet === undefined) return false;
-      if (gSet && !gSet.has(aG)) return false;
+      const aSRaw = (a.cod_gru || a.nom_gru || '').toString().trim();
+      const aSNorm = aSRaw.replace(/^0+/, '');
+      let matchSub = false;
+
+      for (const [sKey, gSet] of Object.entries(subgrupoPorGrupo)) {
+        const sKeyNorm = sKey.trim().replace(/^0+/, '');
+        if (sKey === aSRaw || sKeyNorm === aSNorm || aSRaw.endsWith(sKey)) {
+          if (!gSet || gSet.has(aG) || Array.from(gSet).some(g => g.toUpperCase() === aG)) {
+            matchSub = true;
+            break;
+          }
+        }
+      }
+      if (!matchSub) return false;
     }
 
     if (empresas && a.empresa_id && !empresas.includes(a.empresa_id)) return false;

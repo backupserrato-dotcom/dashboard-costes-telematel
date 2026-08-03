@@ -93,8 +93,8 @@ export default function Listin11View({ unifiedRows = [] }) {
   useEffect(() => {
     const has1L11 = (unifiedRows || []).some(r => {
       const grc = (r.cod_grc || r.nom_grc || '').toString().trim().toUpperCase();
-      const gru = (r.cod_gru || r.nom_gru || '').toString().trim();
-      return (grc === '1L' || grc.startsWith('1L')) && (gru === '11' || gru.endsWith('11'));
+      const gru = (r.cod_gru || r.nom_gru || '').toString().trim().replace(/^0+/, '');
+      return (grc === '1L' || grc.startsWith('1L')) && (gru === '11' || gru === '011' || gru.endsWith('11'));
     });
 
     if (!has1L11 && directRows.length === 0) {
@@ -164,8 +164,8 @@ export default function Listin11View({ unifiedRows = [] }) {
   const effectiveUnifiedRows = useMemo(() => {
     const fromProps = (unifiedRows || []).filter(r => {
       const grc = (r.cod_grc || r.nom_grc || '').toString().trim().toUpperCase();
-      const gru = (r.cod_gru || r.nom_gru || '').toString().trim();
-      return (grc === '1L' || grc.startsWith('1L')) && (gru === '11' || gru.endsWith('11'));
+      const gru = (r.cod_gru || r.nom_gru || '').toString().trim().replace(/^0+/, '');
+      return (grc === '1L' || grc.startsWith('1L')) && (gru === '11' || gru === '011' || gru.endsWith('11'));
     });
     return fromProps.length > 0 ? fromProps : directRows;
   }, [unifiedRows, directRows]);
