@@ -1,12 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Euro, TrendingUp, Layers, AlertTriangle, XCircle, FileText } from 'lucide-react';
 
 const KpiCard = ({ icon: Icon, iconColor, bgColor, label, rawValue, formatter, sub, subColor, barPct }) => {
   const [hovered, setHovered] = useState(false);
   const [animatedValue, setAnimatedValue] = useState(0);
+  const frameRef = useRef(null);
 
   useEffect(() => {
     let start;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setAnimatedValue(rawValue);
+      return undefined;
+    }
     const duration = 1200;
     
     const step = (timestamp) => {
@@ -18,13 +23,14 @@ const KpiCard = ({ icon: Icon, iconColor, bgColor, label, rawValue, formatter, s
       setAnimatedValue(rawValue * easePct);
       
       if (progress < duration) {
-        requestAnimationFrame(step);
+        frameRef.current = requestAnimationFrame(step);
       } else {
         setAnimatedValue(rawValue);
       }
     };
     
-    requestAnimationFrame(step);
+    frameRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(frameRef.current);
   }, [rawValue]);
 
   const shadow = hovered ? `0 0 30px -6px ${iconColor}50` : `0 0 0px transparent`;
@@ -65,22 +71,22 @@ export default function KpiCards({ kpis }) {
     {
       icon: FileText, iconColor: '#38bdf8', bgColor: 'rgba(14,165,233,0.1)',
       label: 'Filas de detalle', rawValue: kpis.totalFilas || 0, formatter: fmtN,
-      sub: `${kpis.totalArticles || 0} artículos únicos`, subColor: '#38bdf8', barPct: 100
+      sub: `${kpis.totalArticles || 0} artículos únicos`, subColor: '#38bdf8'
     },
     {
       icon: Euro, iconColor: '#34d399', bgColor: 'rgba(52,211,153,0.1)',
       label: 'Valoración', rawValue: kpis.totalValuation || 0, formatter: fmtC,
-      sub: 'Σ cos_art × stock_disp', subColor: '#34d399', barPct: 100
+      sub: 'Σ coste × stock disponible', subColor: '#34d399'
     },
     {
       icon: TrendingUp, iconColor: '#818cf8', bgColor: 'rgba(99,102,241,0.1)',
       label: 'Coste medio (aritm.)', rawValue: kpis.averageCost || 0, formatter: fmt,
-      sub: 'Solo filas con coste', subColor: '#818cf8', barPct: 100
+      sub: 'Solo filas con coste', subColor: '#818cf8'
     },
     {
       icon: Layers, iconColor: '#c084fc', bgColor: 'rgba(168,85,247,0.1)',
       label: 'Stock disponible', rawValue: kpis.totalStockUnits || 0, formatter: fmtN,
-      sub: 'Σ stock_disp de las filas', subColor: '#c084fc', barPct: 100
+      sub: 'Total en las filas filtradas', subColor: '#c084fc'
     },
     {
       icon: AlertTriangle, iconColor: '#fbbf24', bgColor: 'rgba(251,191,36,0.1)',

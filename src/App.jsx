@@ -1,20 +1,22 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Navbar from './components/Navbar';
 import FilterBar from './components/FilterBar';
 import KpiCards from './components/KpiCards';
 import ArticlesTable from './components/ArticlesTable';
 import UnifiedCostTable from './components/UnifiedCostTable';
-import PurchasingManagementTable from './components/PurchasingManagementTable';
-import DelegationsBreakdown from './components/DelegationsBreakdown';
-import Listin11View, { parseCableSectionAndColor } from './components/Listin11View';
-import ApiConnectorView from './components/ApiConnectorView';
 import DataTrustBar from './components/DataTrustBar';
+import { parseCableSectionAndColor } from './utils/cableParser';
 import {
   fetchLiveDatabaseData, fetchServerInfo, fetchCatalogos, refreshErpNow, fetchPendingOrders,
   calculateKpis, buildUnifiedRows, SERVER_CONFIG
 } from './services/liveDbClient';
 import { RefreshCw, Database } from 'lucide-react';
-import * as XLSX from 'xlsx';
+
+const PurchasingManagementTable = lazy(() => import('./components/PurchasingManagementTable'));
+const DelegationsBreakdown = lazy(() => import('./components/DelegationsBreakdown'));
+const Listin11View = lazy(() => import('./components/Listin11View'));
+const ApiConnectorView = lazy(() => import('./components/ApiConnectorView'));
+const DashboardCharts = lazy(() => import('./components/DashboardCharts'));
 
 const EMPTY_FILTERS = {
   grupos: [], marcas: [], subgrupos: [],
@@ -121,7 +123,7 @@ export default function App() {
     });
   }, [pendingOrders, filters]);
 
-  const tabla1Ref = React.createRef();
+  const tabla1Ref = useRef(null);
   const handleSeeDetail = useCallback((codArt) => {
     setDetailFilter(codArt);
     setPendingScroll(true);
@@ -135,8 +137,9 @@ export default function App() {
     }
   }, [pendingScroll, tabla1Ref]);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
+      const XLSX = await import('xlsx');
       // Hoja 1: detalle por artículo + empresa + delegación
       const exportData = rows.map(r => ({
         'Código Artículo': r.cod_art,
@@ -275,6 +278,12 @@ export default function App() {
         <KpiCards kpis={kpiData} />
 
         {activeTab === 'tabla' && (
+          <Suspense fallback={<div className="chart-loading" aria-label="Cargando resumen visual" />}>
+            <DashboardCharts rows={rows} />
+          </Suspense>
+        )}
+
+        {activeTab === 'tabla' && (
           <>
             <div ref={tabla1Ref}>
               <ArticlesTable rows={rows} totals={totals} detailFilter={detailFilter} onSelectArticle={(codArt) => setSelectedArticle(codArt)} />
@@ -282,14 +291,12 @@ export default function App() {
             <UnifiedCostTable unifiedRows={unifiedRows} onSeeDetail={handleSeeDetail} />
           </>
         )}
-        {activeTab === 'compras' && (
-          <PurchasingManagementTable orders={filteredPendingOrders} totalUnfilteredCount={pendingOrders.length} />
-        )}
-        {activeTab === 'listin11' && (
-          <Listin11View unifiedRows={masterUnifiedRows} />
-        )}
-        {activeTab === 'delegaciones' && <DelegationsBreakdown rows={rows} />}
-        {activeTab === 'api' && <ApiConnectorView connectionStatus={status} onRefreshLive={loadLive} />}
+        <Suspense fallback={<div className="view-loading"><RefreshCw className="animate-spin" /> Cargando vista…</div>}>
+          {activeTab === 'compras' && <PurchasingManagementTable orders={filteredPendingOrders} totalUnfilteredCount={pendingOrders.length} />}
+          {activeTab === 'listin11' && <Listin11View unifiedRows={masterUnifiedRows} />}
+          {activeTab === 'delegaciones' && <DelegationsBreakdown rows={rows} />}
+          {activeTab === 'api' && <ApiConnectorView connectionStatus={status} onRefreshLive={loadLive} />}
+        </Suspense>
       </main>
 
       {selectedArticle && (

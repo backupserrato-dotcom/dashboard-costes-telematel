@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Layers, Zap, ArrowUp, ArrowDown, Search, ChevronLeft, ChevronRight, AlertCircle, Calculator, CheckCircle2, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { parseCableSectionAndColor } from '../utils/cableParser';
 
 const fmt = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 4 }).format(v || 0);
 const fmtC = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
@@ -17,7 +18,7 @@ const SortIcon = ({ field, sortField, sortDir }) => {
 };
 
 // Helper algorithm to parse cable section and color from commercial description
-export function parseCableSectionAndColor(desc = '') {
+function legacyParseCableSectionAndColor(desc = '') {
   if (!desc) return { section: "OTRA", color: "OTRO", family: "GENERAL" };
   const d = desc.toString().toLowerCase();
 
@@ -52,6 +53,9 @@ export function parseCableSectionAndColor(desc = '') {
 
   return { section, color, family };
 }
+
+// Conservado temporalmente para compatibilidad durante la migración del parser.
+void legacyParseCableSectionAndColor;
 
 const SectionChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
