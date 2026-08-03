@@ -6,12 +6,12 @@ import ArticlesTable from './components/ArticlesTable';
 import UnifiedCostTable from './components/UnifiedCostTable';
 import PurchasingManagementTable from './components/PurchasingManagementTable';
 import DelegationsBreakdown from './components/DelegationsBreakdown';
-import Listin11View, { parseCableSectionAndColor } from './components/Listin11View';
+import Listin11View from './components/Listin11View';
 import ApiConnectorView from './components/ApiConnectorView';
 import DataTrustBar from './components/DataTrustBar';
 import {
   fetchLiveDatabaseData, fetchServerInfo, fetchCatalogos, refreshErpNow, fetchPendingOrders,
-  calculateKpis, buildStockMatrix, buildUnifiedRows, EMPRESAS_DELEGACIONES, SERVER_CONFIG
+  calculateKpis, buildUnifiedRows, SERVER_CONFIG
 } from './services/liveDbClient';
 import { RefreshCw, Database } from 'lucide-react';
 import * as XLSX from 'xlsx';

@@ -344,7 +344,7 @@ app.get('/api/audit-status', (req, res) => {
             timestamp: data.timestamp || new Date().toISOString()
           }
         });
-      } catch (err) {
+      } catch {
         res.json({
           success: true,
           mode: 'CACHE_FALLBACK',

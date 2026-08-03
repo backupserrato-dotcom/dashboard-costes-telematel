@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Layers, Zap, ArrowUp, ArrowDown, Search, ChevronLeft, ChevronRight, AlertCircle, Info, Calculator, CheckCircle2, SlidersHorizontal, BarChart3 } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Layers, Zap, ArrowUp, ArrowDown, Search, ChevronLeft, ChevronRight, AlertCircle, Calculator, CheckCircle2, BarChart3 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
 
 const fmt = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 4 }).format(v || 0);
@@ -86,7 +86,6 @@ export default function Listin11View({ unifiedRows = [] }) {
   const [selectedSectionFilter, setSelectedSectionFilter] = useState('ALL');
 
   const [directRows, setDirectRows] = useState([]);
-  const [loadingDirect, setLoadingDirect] = useState(false);
 
   // Auto-fetch fallback: If unifiedRows has no 1L/11 articles (e.g. while allRows is loading or if FilterBar filtered them out),
   // fetch 1L/11 data directly from the server so LISTIN 11 is ALWAYS populated.
@@ -98,7 +97,6 @@ export default function Listin11View({ unifiedRows = [] }) {
     });
 
     if (!has1L11 && directRows.length === 0) {
-      setLoadingDirect(true);
       fetch('/api/incremental-sync?grupoMarca=1L&subgrupo=11')
         .then(res => res.json())
         .then(data => {
@@ -155,8 +153,7 @@ export default function Listin11View({ unifiedRows = [] }) {
             setDirectRows(unif);
           }
         })
-        .catch(err => console.warn('Direct 1L11 fetch error:', err))
-        .finally(() => setLoadingDirect(false));
+        .catch(err => console.warn('Direct 1L11 fetch error:', err));
     }
   }, [unifiedRows, directRows.length]);
 
@@ -326,8 +323,6 @@ export default function Listin11View({ unifiedRows = [] }) {
   const t2TotalStock = t2Sorted.reduce((sum, r) => sum + (r.stock_unificado || 0), 0);
   const t2TotalValOrig = t2Sorted.reduce((sum, r) => sum + (r.valoracion_unificada || 0), 0);
   const t2TotalValUnif = t2Sorted.reduce((sum, r) => sum + (r.valoracion_unificada_seccion || 0), 0);
-
-  const maxWeightedCost = Math.max(...TARGET_SECTIONS.map(s => sectionStats[s]?.weightedCost || 0), 1);
 
   const sectionChartData = TARGET_SECTIONS.map(sec => {
     const stat = sectionStats[sec] || { weightedCost: 0, arithmeticCost: 0, totalStock: 0, articlesCount: 0 };
