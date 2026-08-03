@@ -29,7 +29,7 @@ export default function Navbar({
         @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
       `}</style>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="navbar-top flex flex-col md:flex-row items-center justify-between gap-4">
 
           {/* Logo & Title */}
           <div className="flex items-center gap-3">
@@ -66,7 +66,7 @@ export default function Navbar({
           </div>
 
           {/* Estado de frescura + acciones */}
-          <div className="flex items-center gap-3 flex-wrap">
+          <div className="navbar-actions flex items-center gap-3 flex-wrap">
             <div className={`px-3 py-1.5 rounded-lg border text-xs flex items-center gap-2 ${isStale ? 'bg-amber-950/40 border-amber-500/30 text-amber-300' : 'bg-emerald-950/40 border-emerald-500/30 text-emerald-400'}`}>
               <Clock className="w-3.5 h-3.5" />
               <span className="hidden sm:inline font-medium">
@@ -110,7 +110,7 @@ export default function Navbar({
         </div>
 
         {/* Pestañas */}
-        <div className="flex items-center gap-2 mt-4 border-t border-slate-800 pt-3 overflow-x-auto">
+        <div className="navbar-tabs flex items-center gap-2 mt-4 border-t border-slate-800 pt-3 overflow-x-auto">
           <TabButton active={activeTab === 'tabla'} onClick={() => setActiveTab('tabla')} icon={Layers} label="Maestro de artículos" />
           <TabButton active={activeTab === 'compras'} onClick={() => setActiveTab('compras')} icon={ShoppingBag} label="Gestión de Compras (Pedidos)" />
           <TabButton active={activeTab === 'listin11'} onClick={() => setActiveTab('listin11')} icon={ListFilter} label="LISTIN 11" />

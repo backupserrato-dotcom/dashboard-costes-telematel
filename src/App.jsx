@@ -1,20 +1,22 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { lazy, Suspense, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Navbar from './components/Navbar';
 import FilterBar from './components/FilterBar';
 import KpiCards from './components/KpiCards';
 import ArticlesTable from './components/ArticlesTable';
 import UnifiedCostTable from './components/UnifiedCostTable';
-import PurchasingManagementTable from './components/PurchasingManagementTable';
-import DelegationsBreakdown from './components/DelegationsBreakdown';
-import Listin11View, { parseCableSectionAndColor } from './components/Listin11View';
-import ApiConnectorView from './components/ApiConnectorView';
 import DataTrustBar from './components/DataTrustBar';
+import { parseCableSectionAndColor } from './utils/cableParser';
 import {
   fetchLiveDatabaseData, fetchServerInfo, fetchCatalogos, refreshErpNow, fetchPendingOrders,
   calculateKpis, buildUnifiedRows, SERVER_CONFIG
 } from './services/liveDbClient';
 import { RefreshCw, Database } from 'lucide-react';
-import * as XLSX from 'xlsx';
+
+const PurchasingManagementTable = lazy(() => import('./components/PurchasingManagementTable'));
+const DelegationsBreakdown = lazy(() => import('./components/DelegationsBreakdown'));
+const Listin11View = lazy(() => import('./components/Listin11View'));
+const ApiConnectorView = lazy(() => import('./components/ApiConnectorView'));
+const DashboardCharts = lazy(() => import('./components/DashboardCharts'));
 
 const EMPTY_FILTERS = {
   grupos: [], marcas: [], subgrupos: [],
@@ -121,7 +123,7 @@ export default function App() {
     });
   }, [pendingOrders, filters]);
 
-  const tabla1Ref = React.createRef();
+  const tabla1Ref = useRef(null);
   const handleSeeDetail = useCallback((codArt) => {
     setDetailFilter(codArt);
     setPendingScroll(true);
@@ -135,8 +137,9 @@ export default function App() {
     }
   }, [pendingScroll, tabla1Ref]);
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     try {
+      const writeExcelFile = (await import('write-excel-file/browser')).default;
       // Hoja 1: detalle por artículo + empresa + delegación
       const exportData = rows.map(r => ({
         'Código Artículo': r.cod_art,
@@ -234,12 +237,39 @@ export default function App() {
         'Importe Pendiente Recepcionar (€)': p.importe_pendiente
       }));
 
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportData), 'Detalle Artículos');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(unifiedData), 'Lista Unificada General');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(listin11ExportData), 'LISTIN 11 (Grupo 1L-11)');
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ordersData), 'Pedidos Pendientes');
-      XLSX.writeFile(wb, `LISTIN_11_Costes_y_Compras_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      const createSheet = (sheet, data) => {
+        if (data.length === 0) {
+          return { sheet, data: [[{ value: 'Sin datos para los filtros aplicados' }]], columns: [{ width: 36 }] };
+        }
+
+        const headers = Object.keys(data[0]);
+        return {
+          sheet,
+          stickyRowsCount: 1,
+          columns: headers.map((header) => ({ width: Math.min(42, Math.max(12, header.length + 2)) })),
+          data: [
+            headers.map((value) => ({ value, fontWeight: 'bold' })),
+            ...data.map((row) => headers.map((header) => ({ value: row[header] ?? null }))),
+          ],
+        };
+      };
+
+      const sheets = [
+        createSheet('Detalle Artículos', exportData),
+        createSheet('Lista Unificada General', unifiedData),
+        createSheet('LISTIN 11 (Grupo 1L-11)', listin11ExportData),
+        createSheet('Pedidos Pendientes', ordersData),
+      ];
+
+      const blob = await writeExcelFile(sheets).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `LISTIN_11_Costes_y_Compras_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Error al exportar a Excel:', err);
       alert('Error al generar el archivo Excel. Por favor reintente.');
@@ -275,6 +305,12 @@ export default function App() {
         <KpiCards kpis={kpiData} />
 
         {activeTab === 'tabla' && (
+          <Suspense fallback={<div className="chart-loading" aria-label="Cargando resumen visual" />}>
+            <DashboardCharts rows={rows} />
+          </Suspense>
+        )}
+
+        {activeTab === 'tabla' && (
           <>
             <div ref={tabla1Ref}>
               <ArticlesTable rows={rows} totals={totals} detailFilter={detailFilter} onSelectArticle={(codArt) => setSelectedArticle(codArt)} />
@@ -282,14 +318,12 @@ export default function App() {
             <UnifiedCostTable unifiedRows={unifiedRows} onSeeDetail={handleSeeDetail} />
           </>
         )}
-        {activeTab === 'compras' && (
-          <PurchasingManagementTable orders={filteredPendingOrders} totalUnfilteredCount={pendingOrders.length} />
-        )}
-        {activeTab === 'listin11' && (
-          <Listin11View unifiedRows={masterUnifiedRows} />
-        )}
-        {activeTab === 'delegaciones' && <DelegationsBreakdown rows={rows} />}
-        {activeTab === 'api' && <ApiConnectorView connectionStatus={status} onRefreshLive={loadLive} />}
+        <Suspense fallback={<div className="view-loading"><RefreshCw className="animate-spin" /> Cargando vista…</div>}>
+          {activeTab === 'compras' && <PurchasingManagementTable orders={filteredPendingOrders} totalUnfilteredCount={pendingOrders.length} />}
+          {activeTab === 'listin11' && <Listin11View unifiedRows={masterUnifiedRows} />}
+          {activeTab === 'delegaciones' && <DelegationsBreakdown rows={rows} />}
+          {activeTab === 'api' && <ApiConnectorView connectionStatus={status} onRefreshLive={loadLive} />}
+        </Suspense>
       </main>
 
       {selectedArticle && (

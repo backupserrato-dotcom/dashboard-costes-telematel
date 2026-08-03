@@ -15,7 +15,7 @@ export default function DataTrustBar({ status, onRefreshLive }) {
 
   return (
     <div
-      className="mb-6 rounded-xl p-3 flex flex-wrap items-center gap-3 text-xs"
+      className="data-trust-bar mb-6 rounded-xl p-3 flex flex-wrap items-center gap-3 text-xs"
       style={{
         background: isStale ? 'rgba(120,53,15,0.18)' : 'rgba(15,23,42,0.7)',
         border: `1px solid ${isStale ? 'rgba(245,158,11,0.45)' : 'rgba(56,189,248,0.25)'}`,
@@ -73,7 +73,7 @@ export default function DataTrustBar({ status, onRefreshLive }) {
         </div>
       )}
 
-      <div className="ml-auto">
+      <div className="trust-action ml-auto">
         <button
           onClick={onRefreshLive}
           className="btn-primary text-xs"
