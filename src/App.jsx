@@ -5,10 +5,11 @@ import KpiCards from './components/KpiCards';
 import ArticlesTable from './components/ArticlesTable';
 import UnifiedCostTable from './components/UnifiedCostTable';
 import DataTrustBar from './components/DataTrustBar';
+import ArticleDetailModal from './components/ArticleDetailModal';
 import { parseCableSectionAndColor } from './utils/cableParser';
 import {
   fetchLiveDatabaseData, fetchServerInfo, fetchCatalogos, refreshErpNow, fetchPendingOrders,
-  calculateKpis, buildUnifiedRows, SERVER_CONFIG
+  calculateKpis, buildUnifiedRows, buildStockMatrix, EMPRESAS_DELEGACIONES, SERVER_CONFIG
 } from './services/liveDbClient';
 import { RefreshCw, Database } from 'lucide-react';
 
@@ -327,7 +328,7 @@ export default function App() {
       </main>
 
       {selectedArticle && (
-        <ArticleDetailModal codArt={selectedArticle} allRows={allRows} onClose={() => setSelectedArticle(null)} status={status} />
+        <ArticleDetailModal codArt={selectedArticle} allRows={allRows} visibleRows={rows} onClose={() => setSelectedArticle(null)} status={status} />
       )}
 
       <footer className="border-t border-slate-800 py-4 text-center text-xs text-slate-500">
@@ -340,7 +341,8 @@ export default function App() {
   );
 }
 
-function ArticleDetailModal({ codArt, allRows, onClose, status }) {
+// oxlint-disable-next-line no-unused-vars -- retirar tras migrar definitivamente la ficha histórica
+function LegacyArticleDetailModal({ codArt, allRows, onClose, status }) {
   const fmt = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v || 0);
   const artRows = allRows.filter(r => r.cod_art === codArt);
   const first = artRows[0] || {};
