@@ -40,7 +40,7 @@ $runtimeNode = Join-Path $runtime 'node.exe'
 $server = Join-Path $root 'server\dbConnectorServer.js'
 $action = New-ScheduledTaskAction -Execute $runtimeNode -Argument "`"$server`"" -WorkingDirectory $root
 $trigger = New-ScheduledTaskTrigger -AtStartup
-$settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit (New-TimeSpan -Days 3650)
+$settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit (New-TimeSpan -Days 3650) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
 
 Write-Host '[5/6] Abriendo el puerto solo a la subred privada...'
@@ -57,6 +57,8 @@ $ready = $false
     }
 }
 if (-not $ready) { throw 'El servicio no respondió. Revise el historial de la tarea programada.' }
+& (Join-Path $PSScriptRoot 'comprobar-despliegue.ps1') -BaseUrl "http://127.0.0.1:$Port"
+if ($LASTEXITCODE -ne 0) { throw 'La comprobación funcional del dashboard no se completó.' }
 
 Write-Host 'Instalación completada. Direcciones disponibles:'
 $activeAdapters = Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object -ExpandProperty ifIndex

@@ -4,6 +4,7 @@ import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { calculateOrderSummary, paginate, parsePowerShellJson } from './serverUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,14 +31,18 @@ const ERP_CONFIG = {
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(v => v.trim()).filter(Boolean);
+const CACHE_ONLY = process.env.CACHE_ONLY === 'true';
 let refreshRunning = false;
 
-// Global error guards — prevent any unhandled promise/exception from crashing the server
+// A fatal JavaScript error can leave Express in an inconsistent state. Exit with
+// a failure code so Task Scheduler can restart a clean process.
 process.on('uncaughtException', (err) => {
-  console.error('[Server] Uncaught Exception (server continues):', err.message);
+  console.error('[Server] Excepción no controlada; reinicio requerido:', err);
+  process.exit(1);
 });
 process.on('unhandledRejection', (reason) => {
-  console.error('[Server] Unhandled Rejection (server continues):', reason);
+  console.error('[Server] Promesa rechazada sin controlar; reinicio requerido:', reason);
+  process.exit(1);
 });
 
 app.disable('x-powered-by');
@@ -108,14 +113,6 @@ function cacheAgeHours() {
   return (Date.now() - mtime.getTime()) / 3600000;
 }
 
-function parsePowerShellJson(stdout) {
-  const clean = String(stdout || '').replace(/^\uFEFF/, '').trim();
-  const start = clean.indexOf('{');
-  const end = clean.lastIndexOf('}');
-  if (start < 0 || end < start) throw new Error('El script no devolvió JSON');
-  return JSON.parse(clean.slice(start, end + 1));
-}
-
 // ─── Health Check ───────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
   const cache = readCache();
@@ -132,6 +129,7 @@ app.get('/api/health', (req, res) => {
     cacheDate: fs.existsSync(cachedDataFile) ? fs.statSync(cachedDataFile).mtime.toISOString() : null,
     cacheAgeHours: ageH !== null ? Math.round(ageH * 100) / 100 : null,
     cacheStale: ageH !== null && ageH > CACHE_MAX_AGE_HOURS,
+    cacheOnly: CACHE_ONLY,
     quality: quality,
     timestamp: new Date().toISOString()
   });
@@ -139,6 +137,7 @@ app.get('/api/health', (req, res) => {
 
 // ─── Helper: ejecutar el extractor unificado ────────────────────────────────
 function runUnifiedExtractor(callback) {
+  if (CACHE_ONLY) return callback(new Error('Servidor configurado en modo de solo caché'), null);
   if (!ERP_CONFIG.user || !ERP_CONFIG.password) {
     return callback(new Error('Faltan TLM_USER o TLM_PASSWORD en el archivo .env'), null);
   }
@@ -190,27 +189,9 @@ app.post('/api/refresh-erp', (req, res) => {
 // ─── Pedidos Pendientes de Recepcionar API ─────────────────────────────────
 app.get('/api/pedidos-pendientes', (req, res) => {
   const pedidos = readPedidosCache();
-  
-  // Calculate exact total metrics
-  let totalImportePendiente = 0;
-  let totalUnidadesPendientes = 0;
-  const pedidosUnicos = new Set();
-  const articulosUnicos = new Set();
-
-  for (const p of pedidos) {
-    totalImportePendiente += p.importe_pendiente || 0;
-    totalUnidadesPendientes += p.unidades_pendientes || 0;
-    if (p.pedido_id) pedidosUnicos.add(p.pedido_id);
-    if (p.cod_art) articulosUnicos.add(p.cod_art);
-  }
-
   res.json({
     success: true,
-    totalLineas: pedidos.length,
-    totalPedidosUnicos: pedidosUnicos.size,
-    totalArticulosUnicos: articulosUnicos.size,
-    totalUnidadesPendientes: Math.round(totalUnidadesPendientes * 100) / 100,
-    totalImportePendiente: Math.round(totalImportePendiente * 100) / 100,
+    ...calculateOrderSummary(pedidos),
     data: pedidos
   });
 });
@@ -498,17 +479,6 @@ app.get('/api/incremental-sync', async (req, res) => {
   const startTime = Date.now();
   const mode = (req.query.mode || 'cache').toLowerCase();
 
-  const paginate = (data) => {
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const requestedPageSize = parseInt(req.query.pageSize) || 0;
-    const pageSize = requestedPageSize > 0 ? Math.min(requestedPageSize, 500) : 0;
-    if (pageSize > 0) {
-      const start = (page - 1) * pageSize;
-      return { page, pageSize, totalPages: Math.ceil(data.length / pageSize) || 1, pageData: data.slice(start, start + pageSize) };
-    }
-    return { page: 1, pageSize: 0, totalPages: 1, pageData: data };
-  };
-
   if (mode === 'live') {
     return execFile('powershell.exe',
       ['-ExecutionPolicy', 'Bypass', '-File', unifiedExtractorPath],
@@ -519,7 +489,7 @@ app.get('/api/incremental-sync', async (req, res) => {
         const result = req.query.sinFiltros
           ? { rows: freshData || [], totals: { stock_disp: 0, valoracion: 0, articulos_unicos: 0 } }
           : applyFilters(freshData || [], req.query);
-        const pg = paginate(result.rows);
+        const pg = paginate(result.rows, req.query.page, req.query.pageSize);
         const stats = fs.statSync(cachedDataFile);
         return res.json({
           success: true,
@@ -555,7 +525,7 @@ app.get('/api/incremental-sync', async (req, res) => {
   const result = req.query.sinFiltros
     ? { rows: data, totals: { stock_disp: 0, valoracion: 0, articulos_unicos: 0 } }
     : applyFilters(data, req.query);
-  const pg = paginate(result.rows);
+  const pg = paginate(result.rows, req.query.page, req.query.pageSize);
 
   return res.json({
     success: true,
@@ -612,7 +582,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   const cache = readCache();
   const pedidos = readPedidosCache();
   console.log(`╔══════════════════════════════════════════════════════════╗`);
@@ -623,3 +593,12 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`║  Pedidos: ${pedidos.length.toLocaleString('es-ES') + ' líneas pendientes de recepcionar'}`);
   console.log(`╚══════════════════════════════════════════════════════════╝`);
 });
+
+function shutdown(signal) {
+  console.log(`[Server] ${signal}: cerrando conexiones…`);
+  server.close((error) => process.exit(error ? 1 : 0));
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
