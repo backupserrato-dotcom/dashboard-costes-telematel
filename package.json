@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "test": "node --test",
     "package:windows": "powershell -ExecutionPolicy Bypass -File scripts/build-portable-windows.ps1",
+    "package:lan-client": "powershell -ExecutionPolicy Bypass -File scripts/build-lan-client.ps1",
     "preview": "vite preview"
   },
   "dependencies": {
