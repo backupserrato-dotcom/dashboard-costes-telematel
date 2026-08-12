@@ -38,10 +38,15 @@ export default function App() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [detailFilter, setDetailFilter] = useState('');
   const [pendingScroll, setPendingScroll] = useState(false);
+  const requestIdRef = useRef(0);
+  const filtersReadyRef = useRef(false);
+  const filterTimerRef = useRef(null);
 
   const loadCache = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     const result = await fetchLiveDatabaseData(filters, 'cache');
+    if (requestId !== requestIdRef.current) return;
     setRows(result.articles || []);
     setTotals(result.totals || { stock_disp: 0, valoracion: 0, articulos_unicos: 0 });
     setStatus(result);
@@ -49,8 +54,11 @@ export default function App() {
   }, [filters]);
 
   const loadLive = useCallback(async () => {
+    if (filterTimerRef.current) window.clearTimeout(filterTimerRef.current);
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     const refresh = await refreshErpNow();
+    if (requestId !== requestIdRef.current) return;
     if (!refresh.success) {
       setStatus(current => ({ ...current, mode: 'ERROR', error: refresh.error || 'No se pudo actualizar el ERP' }));
       setLoading(false);
@@ -61,6 +69,7 @@ export default function App() {
       fetchLiveDatabaseData({}, 'cache', 0, 0),
       fetchPendingOrders()
     ]);
+    if (requestId !== requestIdRef.current) return;
     setRows(result.articles || []);
     setAllRows(fullResult.articles || []);
     setTotals(result.totals || { stock_disp: 0, valoracion: 0, articulos_unicos: 0 });
@@ -71,13 +80,14 @@ export default function App() {
 
   useEffect(() => {
     let active = true;
+    const requestId = ++requestIdRef.current;
     Promise.all([
       fetchServerInfo(),
       fetchCatalogos(),
       fetchLiveDatabaseData({}, 'cache', 0, 0),
       fetchPendingOrders()
     ]).then(([, catalogs, initialData, orders]) => {
-      if (!active) return;
+      if (!active || requestId !== requestIdRef.current) return;
       if (catalogs?.success) setCatalogos(catalogs);
       setRows(initialData.articles || []);
       setAllRows(initialData.articles || []);
@@ -90,8 +100,13 @@ export default function App() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!loading) loadCache();
-  }, [filters]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!filtersReadyRef.current) {
+      filtersReadyRef.current = true;
+      return undefined;
+    }
+    filterTimerRef.current = window.setTimeout(loadCache, 280);
+    return () => window.clearTimeout(filterTimerRef.current);
+  }, [filters, loadCache]);
 
   const handleReset = () => setFilters(EMPTY_FILTERS);
 

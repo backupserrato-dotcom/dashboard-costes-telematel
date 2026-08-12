@@ -48,10 +48,10 @@ export default function ArticlesTable({ rows, totals, onSelectArticle, detailFil
   const sinCosteCount = sorted.filter(r => r.sin_coste).length;
 
   const Th = ({ field, label, align = 'left' }) => (
-    <th onClick={() => handleSort(field)} className="art-th" style={{ textAlign: align }}>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+    <th className="art-th" style={{ textAlign: align }} aria-sort={sortField === field ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" onClick={() => handleSort(field)} className="art-sort-btn" style={{ justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
         {label} <SortIcon field={field} sortField={sortField} sortDir={sortDir} />
-      </span>
+      </button>
     </th>
   );
 
@@ -154,7 +154,7 @@ export default function ArticlesTable({ rows, totals, onSelectArticle, detailFil
                     {r.sin_coste ? '—' : fmtCompact(r.valoracion)}
                   </td>
                   <td className="art-td" style={{ textAlign: 'center' }}>
-                    <button onClick={() => onSelectArticle(r.cod_art)} className="art-detail-btn" title="Ver ficha del artículo">
+                    <button onClick={() => onSelectArticle(r.cod_art)} className="art-detail-btn" title="Ver ficha del artículo" aria-label={`Ver ficha del artículo ${r.cod_art}`}>
                       <Eye style={{ width: 14, height: 14 }} />
                     </button>
                   </td>

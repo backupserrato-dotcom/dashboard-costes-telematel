@@ -905,6 +905,8 @@ body::after {
   position: sticky; top: 0; z-index: 2; transition: color 0.15s;
   border-bottom: 1px solid #334155;
 }
+.art-sort-btn { width: 100%; display: inline-flex; align-items: center; gap: .25rem; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
+.art-sort-btn:hover { color: #f8fafc; }
 .art-th:hover { color: #e2e8f0; }
 .art-row { transition: background 0.15s; }
 .art-row:hover { background: rgba(99, 102, 241, 0.08) !important; }

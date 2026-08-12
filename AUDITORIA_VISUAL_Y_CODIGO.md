@@ -22,6 +22,8 @@ Fecha: 12 de agosto de 2026
 - Eliminada una segunda extracción completa del ERP que se ejecutaba al actualizar manualmente.
 - La carga inicial reutiliza una única descarga maestra para tabla, detalle y LISTIN 11.
 - Los pedidos dejan de descargarse nuevamente con cada cambio de filtro.
+- Las consultas de filtros se agrupan durante la escritura y las respuestas antiguas ya no sobrescriben selecciones nuevas.
+- Las cabeceras ordenables del maestro son ahora controles accesibles mediante teclado y exponen su dirección de orden.
 
 ## Validaciones
 
