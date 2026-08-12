@@ -36,8 +36,6 @@ export default function App() {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [catalogos, setCatalogos] = useState({ grupos: [], marcasPorGrupo: {}, subgruposPorGrupo: {}, subgruposPorGrupoMarca: {}, empresas: [], delegacionesPorEmpresa: {} });
   const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [detailFilter, setDetailFilter] = useState('');
-  const [pendingScroll, setPendingScroll] = useState(false);
   const requestIdRef = useRef(0);
   const filtersReadyRef = useRef(false);
   const filterTimerRef = useRef(null);
@@ -154,19 +152,9 @@ export default function App() {
     });
   }, [pendingOrders, filters]);
 
-  const tabla1Ref = useRef(null);
   const handleSeeDetail = useCallback((codArt) => {
-    setDetailFilter(codArt);
-    setPendingScroll(true);
-    if (activeTab !== 'tabla') setActiveTab('tabla');
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (pendingScroll && tabla1Ref.current) {
-      tabla1Ref.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setPendingScroll(false);
-    }
-  }, [pendingScroll, tabla1Ref]);
+    setSelectedArticle(codArt);
+  }, []);
 
   const handleExportExcel = async () => {
     try {
@@ -343,9 +331,7 @@ export default function App() {
 
         {activeTab === 'tabla' && (
           <>
-            <div ref={tabla1Ref}>
-              <ArticlesTable rows={rows} totals={totals} detailFilter={detailFilter} onSelectArticle={(codArt) => setSelectedArticle(codArt)} />
-            </div>
+            <ArticlesTable rows={rows} totals={totals} onSelectArticle={handleSeeDetail} />
             <UnifiedCostTable unifiedRows={unifiedRows} onSeeDetail={handleSeeDetail} />
           </>
         )}
