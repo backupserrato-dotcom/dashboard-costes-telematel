@@ -58,6 +58,10 @@ app.use((req, res, next) => {
   res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'");
   next();
 });
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
 const distPath             = path.join(__dirname, '..', 'dist');
 const auditScriptPath         = path.join(__dirname, 'auditar_descarga.ps1');
@@ -67,35 +71,35 @@ const cachedPedidosFile        = path.join(__dirname, '..', 'datos_pedidos_pendi
 const qualityFile             = path.join(__dirname, '..', 'datos_costes_calidad.json');
 
 const CACHE_MAX_AGE_HOURS = 24;
+const jsonMemoryCache = new Map();
+
+function readJsonFile(filePath, fallback) {
+  try {
+    const stats = fs.statSync(filePath);
+    const cached = jsonMemoryCache.get(filePath);
+    if (cached?.mtimeMs === stats.mtimeMs && cached?.size === stats.size) return cached.value;
+    const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
+    const value = JSON.parse(raw);
+    jsonMemoryCache.set(filePath, { mtimeMs: stats.mtimeMs, size: stats.size, value });
+    return value;
+  } catch {
+    return fallback;
+  }
+}
 
 // ─── Helper: read cached JSON safely ────────────────────────────────────────
 function readCache() {
-  try {
-    const raw = fs.readFileSync(cachedDataFile, 'utf8').replace(/^\uFEFF/, '');
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return null;
-  }
+  const data = readJsonFile(cachedDataFile, null);
+  return data === null ? null : (Array.isArray(data) ? data : []);
 }
 
 function readPedidosCache() {
-  try {
-    const raw = fs.readFileSync(cachedPedidosFile, 'utf8').replace(/^\uFEFF/, '');
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
+  const data = readJsonFile(cachedPedidosFile, []);
+  return Array.isArray(data) ? data : [];
 }
 
 function readQuality() {
-  try {
-    const raw = fs.readFileSync(qualityFile, 'utf8').replace(/^\uFEFF/, '');
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return readJsonFile(qualityFile, null);
 }
 
 function cacheAgeHours() {
@@ -495,8 +499,9 @@ app.get('/api/incremental-sync', async (req, res) => {
   const mode = (req.query.mode || 'cache').toLowerCase();
 
   const paginate = (data) => {
-    const page = parseInt(req.query.page) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 0;
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const requestedPageSize = parseInt(req.query.pageSize) || 0;
+    const pageSize = requestedPageSize > 0 ? Math.min(requestedPageSize, 500) : 0;
     if (pageSize > 0) {
       const start = (page - 1) * pageSize;
       return { page, pageSize, totalPages: Math.ceil(data.length / pageSize) || 1, pageData: data.slice(start, start + pageSize) };

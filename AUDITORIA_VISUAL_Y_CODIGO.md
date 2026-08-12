@@ -24,6 +24,8 @@ Fecha: 12 de agosto de 2026
 - Los pedidos dejan de descargarse nuevamente con cada cambio de filtro.
 - Las consultas de filtros se agrupan durante la escritura y las respuestas antiguas ya no sobrescriben selecciones nuevas.
 - Las cabeceras ordenables del maestro son ahora controles accesibles mediante teclado y exponen su dirección de orden.
+- El servidor conserva en memoria los JSON ya procesados y los invalida automáticamente cuando cambia su fecha o tamaño.
+- La API evita caché del navegador y limita la paginación solicitada a un máximo seguro de 500 filas.
 
 ## Validaciones
 
