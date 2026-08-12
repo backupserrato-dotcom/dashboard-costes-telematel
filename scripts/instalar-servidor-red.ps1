@@ -12,12 +12,17 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 
 $node = (Get-Command node.exe -ErrorAction Stop).Source
 $npm = (Get-Command npm.cmd -ErrorAction Stop).Source
+$packageJson = Join-Path $root 'package.json'
+$packageLock = Join-Path $root 'package-lock.json'
+if (-not (Test-Path -LiteralPath $packageJson) -or -not (Test-Path -LiteralPath $packageLock)) {
+    throw 'La instalación está incompleta: faltan package.json o package-lock.json en C:\Costes.'
+}
 
 Write-Host '[1/6] Instalando dependencias verificadas...'
-& $npm ci
+& $npm ci --prefix $root
 if ($LASTEXITCODE -ne 0) { throw 'No se pudieron instalar las dependencias.' }
 Write-Host '[2/6] Compilando el dashboard...'
-& $npm run build
+& $npm run build --prefix $root
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el dashboard.' }
 
 Write-Host '[3/6] Incluyendo runtime independiente...'
