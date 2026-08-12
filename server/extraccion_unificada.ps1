@@ -26,11 +26,12 @@ $outputPedidosFile = Join-Path $PSScriptRoot "..\datos_pedidos_pendientes.json"
 $auditFile         = Join-Path $PSScriptRoot "..\datos_costes_calidad.json"
 $lecturaTs         = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ss")
 
+$nombreFontaneria = '10 Fontaner' + [char]0x00ED + 'a'
 $ubicaciones = @(
     @{ empresa_id = '03'; delegacion_id = '00'; empresa_nombre = '03 San Pedro'; delegacion_nombre = '00 Electricidad' },
-    @{ empresa_id = '03'; delegacion_id = '10'; empresa_nombre = '03 San Pedro'; delegacion_nombre = '10 Fontanería' },
+    @{ empresa_id = '03'; delegacion_id = '10'; empresa_nombre = '03 San Pedro'; delegacion_nombre = $nombreFontaneria },
     @{ empresa_id = '04'; delegacion_id = '00'; empresa_nombre = '04 Estepona'; delegacion_nombre = '00 Electricidad' },
-    @{ empresa_id = '04'; delegacion_id = '10'; empresa_nombre = '04 Estepona'; delegacion_nombre = '10 Fontanería' },
+    @{ empresa_id = '04'; delegacion_id = '10'; empresa_nombre = '04 Estepona'; delegacion_nombre = $nombreFontaneria },
     @{ empresa_id = '05'; delegacion_id = '00'; empresa_nombre = '05 Marbella'; delegacion_nombre = '00 Marbella' }
 )
 $ubicacionKeys = @()

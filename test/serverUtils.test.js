@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { calculateOrderSummary, paginate, parsePowerShellJson } from '../server/serverUtils.js';
+import { calculateOrderSummary, paginate, parsePowerShellJson, repairKnownMojibake } from '../server/serverUtils.js';
 
 test('extrae JSON aunque PowerShell incluya texto y BOM', () => {
   assert.deepEqual(parsePowerShellJson('\uFEFFaviso\n{"success":true,"count":2}\nfin'), { success: true, count: 2 });
@@ -8,6 +8,15 @@ test('extrae JSON aunque PowerShell incluya texto y BOM', () => {
 
 test('rechaza una salida de PowerShell sin JSON', () => {
   assert.throws(() => parsePowerShellJson('solo texto'), /no devolvió JSON/);
+});
+
+test('repara la codificación dañada sin modificar otros valores', () => {
+  const input = [{ delegacion_nombre: '10 FontanerÃ­a', unidades: 3 }, 'María', null];
+  assert.deepEqual(repairKnownMojibake(input), [
+    { delegacion_nombre: '10 Fontanería', unidades: 3 },
+    'María',
+    null,
+  ]);
 });
 
 test('resume pedidos con números, cadenas y claves únicas', () => {

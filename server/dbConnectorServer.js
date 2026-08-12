@@ -4,7 +4,7 @@ import { execFile } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { calculateOrderSummary, paginate, parsePowerShellJson } from './serverUtils.js';
+import { calculateOrderSummary, paginate, parsePowerShellJson, repairKnownMojibake } from './serverUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -56,6 +56,11 @@ if (ALLOWED_ORIGINS.length > 0) {
 }
 app.use(express.json({ limit: '32kb' }));
 app.use((req, res, next) => {
+  const sendJson = res.json.bind(res);
+  res.json = (body) => sendJson(repairKnownMojibake(body));
+  next();
+});
+app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
@@ -84,7 +89,9 @@ function readJsonFile(filePath, fallback) {
     const cached = jsonMemoryCache.get(filePath);
     if (cached?.mtimeMs === stats.mtimeMs && cached?.size === stats.size) return cached.value;
     const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
-    const value = JSON.parse(raw);
+    // Repara texto heredado de extracciones ejecutadas por Windows PowerShell
+    // antes de guardar el resultado en la caché de memoria.
+    const value = repairKnownMojibake(JSON.parse(raw));
     jsonMemoryCache.set(filePath, { mtimeMs: stats.mtimeMs, size: stats.size, value });
     return value;
   } catch {
