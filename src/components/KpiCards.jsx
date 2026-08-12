@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Euro, TrendingUp, Layers, AlertTriangle, XCircle, FileText } from 'lucide-react';
 
 const KpiCard = ({ icon: Icon, iconColor, bgColor, label, rawValue, formatter, sub, subColor, barPct }) => {
-  const [hovered, setHovered] = useState(false);
   const [animatedValue, setAnimatedValue] = useState(0);
   const frameRef = useRef(null);
 
@@ -33,23 +32,16 @@ const KpiCard = ({ icon: Icon, iconColor, bgColor, label, rawValue, formatter, s
     return () => cancelAnimationFrame(frameRef.current);
   }, [rawValue]);
 
-  const shadow = hovered ? `0 0 30px -6px ${iconColor}50` : `0 0 0px transparent`;
-
   return (
-    <div 
-      className="kpi-card" 
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{ boxShadow: shadow, transition: 'box-shadow 0.3s ease' }}
-    >
+    <div className="kpi-card" style={{ '--kpi-accent': iconColor }}>
       <div className="kpi-glow" style={{ background: `linear-gradient(90deg, transparent, ${iconColor}80, transparent)` }} />
       <div>
         <p className="kpi-label">{label}</p>
         <p className="kpi-value">{formatter(animatedValue)}</p>
         {sub && <p className="kpi-sub" style={{ color: subColor || '#64748b' }}>{sub}</p>}
         {barPct !== undefined && (
-          <div className="kpi-bar-track" style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '2px', marginTop: '8px', overflow: 'hidden' }}>
-            <div className="kpi-bar-fill" style={{ width: `${Math.min(100, Math.max(0, barPct))}%`, height: '100%', background: iconColor, borderRadius: '2px', transition: 'width 1s ease-out' }} />
+          <div className="kpi-bar-track">
+            <div className="kpi-bar-fill" style={{ width: `${Math.min(100, Math.max(0, barPct))}%`, background: iconColor }} />
           </div>
         )}
       </div>

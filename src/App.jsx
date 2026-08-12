@@ -9,7 +9,7 @@ import ArticleDetailModal from './components/ArticleDetailModal';
 import { parseCableSectionAndColor } from './utils/cableParser';
 import {
   fetchLiveDatabaseData, fetchServerInfo, fetchCatalogos, refreshErpNow, fetchPendingOrders,
-  calculateKpis, buildUnifiedRows, buildStockMatrix, EMPRESAS_DELEGACIONES, SERVER_CONFIG
+  calculateKpis, buildUnifiedRows, SERVER_CONFIG
 } from './services/liveDbClient';
 import { RefreshCw, Database } from 'lucide-react';
 
@@ -289,7 +289,7 @@ export default function App() {
         loading={loading}
       />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main className="dashboard-main flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {loading && (
           <div className="glass-panel p-4 mb-6 flex items-center gap-3 border-l-4 border-l-sky-500">
             <RefreshCw className="w-5 h-5 text-sky-400 animate-spin" />
@@ -337,78 +337,6 @@ export default function App() {
           Dashboard Costes Medios & Compras • {SERVER_CONFIG.hostName} ({SERVER_CONFIG.ip})
         </p>
       </footer>
-    </div>
-  );
-}
-
-// oxlint-disable-next-line no-unused-vars -- retirar tras migrar definitivamente la ficha histórica
-function LegacyArticleDetailModal({ codArt, allRows, onClose, status }) {
-  const fmt = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(v || 0);
-  const artRows = allRows.filter(r => r.cod_art === codArt);
-  const first = artRows[0] || {};
-  const cos = first.sin_coste ? null : first.cos_art;
-  const totalStock = artRows.reduce((s, r) => s + (r.stock_disp || 0), 0);
-  const matrix = buildStockMatrix(allRows, codArt);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
-      <div className="glass-panel max-w-2xl w-full p-6 relative border border-slate-700 shadow-2xl">
-        <button onClick={onClose} className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-lg bg-slate-800">✕</button>
-
-        <div className="flex items-center gap-3 pb-4 border-b border-slate-800">
-          <div className="p-3 bg-sky-500/20 border border-sky-500/30 rounded-xl text-sky-400 font-mono font-bold">{codArt}</div>
-          <div>
-            <span className="badge badge-blue font-mono text-xs mb-1">Ref: {first.ref_art || '—'}</span>
-            <h3 className="text-lg font-bold text-white leading-tight">{first.nom_art || 'Sin descripción'}</h3>
-            <p className="text-xs text-purple-300 mt-0.5">
-              {first.nom_mar || '—'} • Grupo: {first.nom_grc || '—'} • Subgrupo: {first.nom_gru || '—'}
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 py-4 border-b border-slate-800 text-sm">
-          <div className="glass-card p-3">
-            <span className="text-xs text-slate-400 block">Coste de ficha (cos_art)</span>
-            {first.sin_coste
-              ? <span className="text-xl font-bold text-amber-400">Sin coste informado</span>
-              : <span className="text-xl font-bold text-emerald-400 font-mono">{fmt(cos)}</span>}
-          </div>
-          <div className="glass-card p-3">
-            <span className="text-xs text-slate-400 block">Stock disponible total</span>
-            {totalStock <= 0
-              ? <span className="text-xl font-bold text-rose-400">Sin existencias</span>
-              : <span className="text-xl font-bold text-sky-400 font-mono">{totalStock} uds</span>}
-          </div>
-        </div>
-
-        <div className="pt-4">
-          <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Matriz de stock por empresa y delegación</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {EMPRESAS_DELEGACIONES.flatMap(emp =>
-              emp.delegaciones.map(del => {
-                const key = `${emp.empresaId}-${del.id}`;
-                const stk = matrix[key] || 0;
-                return (
-                  <div key={key} className="glass-card p-3 flex items-center justify-between">
-                    <div className="text-xs">
-                      <span className="font-bold text-slate-200">{emp.empresaNombre}</span>
-                      <div className="text-slate-400 text-[11px]">{del.nombre}</div>
-                    </div>
-                    <span className={`badge font-mono ${stk > 0 ? 'badge-green' : 'badge-rose'}`}>{stk} uds</span>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </div>
-
-        <div className="mt-4 text-[11px] text-slate-500 border-t border-slate-800 pt-3">
-          Fecha de datos: {first.fecha_actualizacion || status?.extractedAt || '—'} • Fuente: {status?.source || '—'}
-        </div>
-        <div className="mt-6 flex justify-end">
-          <button onClick={onClose} className="btn-secondary text-xs px-4 py-2">Cerrar</button>
-        </div>
-      </div>
     </div>
   );
 }

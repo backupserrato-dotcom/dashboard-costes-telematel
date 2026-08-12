@@ -129,10 +129,8 @@ function TabButton({ active, onClick, icon: Icon, label }) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 whitespace-nowrap ${
-        active ? '' : 'text-slate-400 hover:text-white hover:bg-slate-800'
-      }`}
-      style={active ? { background: 'linear-gradient(135deg, rgba(79,70,229,0.3) 0%, rgba(56,189,248,0.1) 100%)', borderBottom: '2px solid #6366f1', color: 'white', boxShadow: '0 4px 15px rgba(99,102,241,0.2)' } : undefined}
+      className={`nav-tab ${active ? 'is-active' : ''}`}
+      aria-current={active ? 'page' : undefined}
     >
       <Icon className="w-4 h-4" />
       <span>{label}</span>
