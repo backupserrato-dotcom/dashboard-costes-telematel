@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Layers, Zap, ArrowUp, ArrowDown, Search, ChevronLeft, ChevronRight, AlertCircle, Calculator, CheckCircle2, BarChart3 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { parseCableSectionAndColor } from '../utils/cableParser';
 
 const fmt = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 4 }).format(v || 0);
@@ -59,12 +59,16 @@ void legacyParseCableSectionAndColor;
 
 const SectionChartTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
+  const row = payload[0]?.payload || {};
+  const difference = Math.abs((row.costePonderado || 0) - (row.costeAritmetico || 0));
   return (
     <div style={{ background: 'rgba(10,14,30,0.97)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 10, padding: '10px 14px', fontSize: 12 }}>
       <p style={{ color: '#fbbf24', fontWeight: 700, marginBottom: 6 }}>{label}</p>
-      <p style={{ color: '#34d399' }}>Coste: <strong>{payload[0]?.value?.toFixed(4)} €/m</strong></p>
-      <p style={{ color: '#38bdf8' }}>Stock: <strong>{payload[0]?.payload?.stock?.toLocaleString('es-ES')} m</strong></p>
-      <p style={{ color: '#c084fc' }}>Referencias: <strong>{payload[0]?.payload?.refs}</strong></p>
+      <p style={{ color: '#f59e0b' }}>Ponderado: <strong>{(row.costePonderado || 0).toFixed(4)} €/m</strong></p>
+      <p style={{ color: '#38bdf8' }}>Aritmético: <strong>{(row.costeAritmetico || 0).toFixed(4)} €/m</strong></p>
+      <p style={{ color: '#f8fafc' }}>Diferencia: <strong>{difference.toFixed(4)} €/m</strong></p>
+      <p style={{ color: '#34d399' }}>Stock: <strong>{row.stock?.toLocaleString('es-ES')} m</strong></p>
+      <p style={{ color: '#c084fc' }}>Referencias: <strong>{row.refs}</strong></p>
     </div>
   );
 };
@@ -330,11 +334,10 @@ export default function Listin11View({ unifiedRows = [] }) {
 
   const sectionChartData = TARGET_SECTIONS.map(sec => {
     const stat = sectionStats[sec] || { weightedCost: 0, arithmeticCost: 0, totalStock: 0, articlesCount: 0 };
-    const rawVal = calcMode === 'WEIGHTED' ? stat.weightedCost : stat.arithmeticCost;
-    const numVal = Number(rawVal) || 0;
     return {
       section: `${sec} mm²`,
-      coste: parseFloat(numVal.toFixed(4)),
+      costePonderado: Number((Number(stat.weightedCost) || 0).toFixed(4)),
+      costeAritmetico: Number((Number(stat.arithmeticCost) || 0).toFixed(4)),
       stock: stat.totalStock || 0,
       refs: stat.articlesCount || 0
     };
@@ -438,29 +441,25 @@ export default function Listin11View({ unifiedRows = [] }) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-white flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-amber-400" />
-            <span>Visualizador de Costes Unificados por Sección (1 mm² a 35 mm²)</span>
+            <span>Comparativa de costes unificados por sección (1 mm² a 35 mm²)</span>
           </h3>
           <span className="text-xs text-slate-400 font-mono">Modo Activo: <strong className="text-amber-400">{calcMode === 'WEIGHTED' ? 'Media Ponderada por Stock' : 'Media Aritmética de Ficha'}</strong></span>
+        </div>
+        <div className="flex items-center justify-center gap-5 mb-1 text-xs text-slate-300" aria-label="Leyenda del gráfico">
+          <span className="inline-flex items-center gap-2"><i className="w-2.5 h-2.5 rounded-full bg-amber-500" aria-hidden="true" /> Media ponderada por stock</span>
+          <span className="inline-flex items-center gap-2"><i className="w-2.5 h-2.5 rounded-full bg-sky-400" aria-hidden="true" /> Media aritmética</span>
         </div>
 
         <div style={{ width: '100%', height: 320 }}>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={sectionChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={sectionChartData} margin={{ top: 8, right: 24, left: 16, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis dataKey="section" tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 600 }} />
               <YAxis tick={{ fill: '#64748b', fontSize: 11 }} tickFormatter={v => v.toFixed(2) + ' €'} />
               <Tooltip content={<SectionChartTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
               <ReferenceLine y={0} stroke="rgba(255,255,255,0.1)" />
-              <Bar dataKey="coste" name="Coste Unificado (€/m)" radius={[6, 6, 0, 0]}>
-                {sectionChartData.map((entry, index) => {
-                  const ratio = sectionChartData.length > 1 ? index / (sectionChartData.length - 1) : 0;
-                  const r = Math.round(245 + ratio * (16 - 245));
-                  const g = Math.round(158 + ratio * (185 - 158));
-                  const b = Math.round(11 + ratio * (129 - 11));
-                  const fill = `rgb(${r},${g},${b})`;
-                  return <Cell key={`cell-${index}`} fill={fill} />;
-                })}
-              </Bar>
+              <Bar dataKey="costePonderado" name="Media ponderada por stock" radius={[5, 5, 0, 0]} fill="#f59e0b" fillOpacity={calcMode === 'WEIGHTED' ? 1 : 0.42} />
+              <Bar dataKey="costeAritmetico" name="Media aritmética" radius={[5, 5, 0, 0]} fill="#38bdf8" fillOpacity={calcMode === 'ARITHMETIC' ? 1 : 0.42} />
             </BarChart>
           </ResponsiveContainer>
         </div>
