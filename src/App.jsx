@@ -42,36 +42,51 @@ export default function App() {
   const loadCache = useCallback(async () => {
     setLoading(true);
     const result = await fetchLiveDatabaseData(filters, 'cache');
-    const pedRes = await fetchPendingOrders();
     setRows(result.articles || []);
     setTotals(result.totals || { stock_disp: 0, valoracion: 0, articulos_unicos: 0 });
-    setPendingOrders(pedRes.data || []);
     setStatus(result);
     setLoading(false);
   }, [filters]);
 
   const loadLive = useCallback(async () => {
     setLoading(true);
-    await refreshErpNow();
-    const result = await fetchLiveDatabaseData(filters, 'live');
-    const pedRes = await fetchPendingOrders();
+    const refresh = await refreshErpNow();
+    if (!refresh.success) {
+      setStatus(current => ({ ...current, mode: 'ERROR', error: refresh.error || 'No se pudo actualizar el ERP' }));
+      setLoading(false);
+      return;
+    }
+    const [result, fullResult, pedRes] = await Promise.all([
+      fetchLiveDatabaseData(filters, 'cache'),
+      fetchLiveDatabaseData({}, 'cache', 0, 0),
+      fetchPendingOrders()
+    ]);
     setRows(result.articles || []);
+    setAllRows(fullResult.articles || []);
     setTotals(result.totals || { stock_disp: 0, valoracion: 0, articulos_unicos: 0 });
     setPendingOrders(pedRes.data || []);
-    setStatus(result);
+    setStatus({ ...result, mode: 'ERP_LIVE' });
     setLoading(false);
   }, [filters]);
 
-  const loadAllForDetail = useCallback(async () => {
-    const result = await fetchLiveDatabaseData({}, 'cache', 0, 0);
-    setAllRows(result.articles || []);
-  }, []);
-
   useEffect(() => {
-    fetchServerInfo();
-    fetchCatalogos().then(c => { if (c && c.success) setCatalogos(c); });
-    loadCache();
-    loadAllForDetail();
+    let active = true;
+    Promise.all([
+      fetchServerInfo(),
+      fetchCatalogos(),
+      fetchLiveDatabaseData({}, 'cache', 0, 0),
+      fetchPendingOrders()
+    ]).then(([, catalogs, initialData, orders]) => {
+      if (!active) return;
+      if (catalogs?.success) setCatalogos(catalogs);
+      setRows(initialData.articles || []);
+      setAllRows(initialData.articles || []);
+      setTotals(initialData.totals || { stock_disp: 0, valoracion: 0, articulos_unicos: 0 });
+      setPendingOrders(orders.data || []);
+      setStatus(initialData);
+      setLoading(false);
+    });
+    return () => { active = false; };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {

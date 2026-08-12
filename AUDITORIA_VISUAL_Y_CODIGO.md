@@ -19,6 +19,9 @@ Fecha: 12 de agosto de 2026
 - Retirados estilos en línea redundantes de las barras KPI.
 - Centralizado el estilo de pestañas en clases reutilizables.
 - Reducido el paquete JavaScript principal al retirar código muerto.
+- Eliminada una segunda extracción completa del ERP que se ejecutaba al actualizar manualmente.
+- La carga inicial reutiliza una única descarga maestra para tabla, detalle y LISTIN 11.
+- Los pedidos dejan de descargarse nuevamente con cada cambio de filtro.
 
 ## Validaciones
 
