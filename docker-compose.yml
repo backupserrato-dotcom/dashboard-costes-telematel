@@ -14,8 +14,8 @@ services:
       - NODE_ENV=production
       - TLM_DSN=tlmplusV11
       - TLM_DSN_INCREMENTAL=tlmplus1V11
-      - TLM_USER=userSQL
-      - TLM_PASSWORD=userSQL
+      - TLM_USER=${TLM_USER}
+      - TLM_PASSWORD=${TLM_PASSWORD}
       - TLM_HOST_NAME=dataserver
       - TLM_HOST_IP=192.168.1.3
     volumes:

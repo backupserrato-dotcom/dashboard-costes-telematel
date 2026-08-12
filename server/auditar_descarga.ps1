@@ -1,5 +1,9 @@
-$connStringV11 = "DSN=tlmplusV11;UID=userSQL;PWD=userSQL"
-$outputFile = "y:\ANALYTICS\COSTES\datos_costes_actualizados.json"
+$user = $env:TLM_USER
+$password = $env:TLM_PASSWORD
+if ([string]::IsNullOrWhiteSpace($user) -or [string]::IsNullOrWhiteSpace($password)) { throw 'Faltan credenciales ERP en .env' }
+$dsn = if ($env:TLM_DSN) { $env:TLM_DSN } else { 'tlmplusV11' }
+$connStringV11 = "DSN=$dsn;UID=$user;PWD=$password"
+$outputFile = Join-Path (Split-Path $PSScriptRoot -Parent) 'datos_costes_actualizados.json'
 
 $conn = New-Object System.Data.Odbc.OdbcConnection($connStringV11)
 try {
