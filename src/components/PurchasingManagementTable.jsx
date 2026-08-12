@@ -7,6 +7,13 @@ const fmt = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency:
 const fmtCompact = (v) => new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v || 0);
 const fmtNumber = (v) => new Intl.NumberFormat('es-ES').format(v || 0);
 
+const getAgeDays = (dateValue) => {
+  if (!dateValue) return null;
+  const orderDate = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(orderDate.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - orderDate.getTime()) / 86400000));
+};
+
 const SortIcon = ({ field, sortField, sortDir }) => {
   if (sortField !== field) return <span className="text-slate-600 font-mono text-xs">↕</span>;
   return sortDir === 'asc'
@@ -62,6 +69,17 @@ export default function PurchasingManagementTable({ orders = [], totalUnfiltered
   const totalPendingUnits = useMemo(() => sorted.reduce((sum, r) => sum + (r.unidades_pendientes || 0), 0), [sorted]);
   const uniqueOrdersCount = useMemo(() => new Set(sorted.map(r => r.pedido_id)).size, [sorted]);
   const uniqueArticlesCount = useMemo(() => new Set(sorted.map(r => r.cod_art)).size, [sorted]);
+  const aging = useMemo(() => sorted.reduce((summary, order) => {
+    const days = getAgeDays(order.fecha_pedido);
+    if (days === null) {
+      summary.withoutDate += 1;
+      summary.withoutDateAmount += Number(order.importe_pendiente) || 0;
+    } else if (days > 30) {
+      summary.over30 += 1;
+      summary.over30Amount += Number(order.importe_pendiente) || 0;
+    }
+    return summary;
+  }, { over30: 0, over30Amount: 0, withoutDate: 0, withoutDateAmount: 0 }), [sorted]);
 
   const totalPages = Math.ceil(sorted.length / pageSize) || 1;
   const paginated = sorted.slice((page - 1) * pageSize, page * pageSize);
@@ -84,7 +102,7 @@ export default function PurchasingManagementTable({ orders = [], totalUnfiltered
     <div className="space-y-6">
       
       {/* KPI Cards Summary for Purchasing Management */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
         <div className="glass-panel p-4 flex items-center justify-between border-l-4 border-l-amber-500">
           <div>
             <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Total Pendiente (Selección)</p>
@@ -120,7 +138,23 @@ export default function PurchasingManagementTable({ orders = [], totalUnfiltered
           </div>
           <FileText className="w-8 h-8 text-purple-400/40" />
         </div>
+
+        <div className="glass-panel p-4 flex items-center justify-between border-l-4 border-l-rose-500">
+          <div>
+            <p className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Más de 30 días</p>
+            <p className="text-2xl font-extrabold text-rose-400 font-mono mt-1">{aging.over30.toLocaleString('es-ES')}</p>
+            <p className="text-[11px] text-slate-400 mt-0.5">{fmtCompact(aging.over30Amount)} pendientes</p>
+          </div>
+          <AlertCircle className="w-8 h-8 text-rose-400/40" />
+        </div>
       </div>
+
+      {aging.withoutDate > 0 && (
+        <div className="glass-panel px-4 py-3 border border-amber-500/30 bg-amber-500/5 flex items-center gap-3 text-xs text-slate-300" role="status">
+          <AlertCircle className="w-5 h-5 text-amber-400 flex-shrink-0" />
+          <p><strong className="text-amber-300">Calidad del dato:</strong> {aging.withoutDate.toLocaleString('es-ES')} líneas, por {fmt(aging.withoutDateAmount)}, no tienen fecha de pedido y no se incluyen en el indicador de antigüedad.</p>
+        </div>
+      )}
 
       {/* Main Table Container */}
       <div className="glass-panel overflow-hidden border border-slate-700/80 rounded-xl">
@@ -223,11 +257,20 @@ export default function PurchasingManagementTable({ orders = [], totalUnfiltered
                   </td>
                 </tr>
               ) : (
-                paginated.map((r, idx) => (
+                paginated.map((r, idx) => {
+                  const ageDays = getAgeDays(r.fecha_pedido);
+                  return (
                   <tr key={`${r.pedido_id}-${r.linea_num}-${r.cod_art}-${idx}`} className="hover:bg-slate-800/50 transition-colors text-xs">
                     <td className="px-3 py-2 font-mono font-bold text-amber-400 whitespace-nowrap">{r.pedido_id}</td>
                     <td className="px-3 py-2 font-mono text-center text-slate-400 whitespace-nowrap">{r.linea_num}</td>
-                    <td className="px-3 py-2 font-mono text-slate-400 whitespace-nowrap">{r.fecha_pedido || '—'}</td>
+                    <td className="px-3 py-2 font-mono text-slate-400 whitespace-nowrap">
+                      <span>{r.fecha_pedido || '—'}</span>
+                      {ageDays !== null && (
+                        <span className={`block mt-1 text-[10px] font-bold ${ageDays > 30 ? 'text-rose-400' : ageDays > 14 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {ageDays} días
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-slate-300 font-medium max-w-xs truncate" title={r.razon_social}>
                       <span className="flex items-center gap-1.5">
                         <User className="w-3 h-3 text-amber-400/70 flex-shrink-0" />
@@ -253,7 +296,8 @@ export default function PurchasingManagementTable({ orders = [], totalUnfiltered
                       {fmt(r.importe_pendiente)}
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
 
