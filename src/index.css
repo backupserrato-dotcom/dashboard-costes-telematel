@@ -701,6 +701,7 @@ body::after {
   transition: all 0.15s;
 }
 .filter-reset-btn:hover { background: rgba(244, 63, 94, 0.1); border-color: rgba(244, 63, 94, 0.3); }
+.filter-reset-btn:disabled { opacity: .42; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .filter-toggle-btn {
   display: flex;

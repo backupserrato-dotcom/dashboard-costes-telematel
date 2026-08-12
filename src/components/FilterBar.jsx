@@ -132,17 +132,17 @@ export default function FilterBar({ filters, setFilters, catalogos, onReset }) {
             className={`filter-search-input ${searchFocused ? 'focused' : ''}`}
           />
           {filters.searchTerm && (
-            <button onClick={() => setFilters(p => ({ ...p, searchTerm: '' }))} className="filter-clear-btn">
-              <X style={{ width: 13, height: 13 }} />
+            <button onClick={() => setFilters(p => ({ ...p, searchTerm: '' }))} className="filter-clear-btn" aria-label="Borrar búsqueda">
+              <X style={{ width: 13, height: 13 }} aria-hidden="true" />
             </button>
           )}
         </div>
 
-        <button onClick={onReset} className="filter-reset-btn">
+        <button onClick={onReset} className="filter-reset-btn" disabled={activeCount === 0}>
           <RotateCcw style={{ width: 12, height: 12 }} />
           Limpiar todo
         </button>
-        <button onClick={() => setPanelOpen(v => !v)} className="filter-toggle-btn">
+        <button onClick={() => setPanelOpen(v => !v)} className="filter-toggle-btn" aria-expanded={panelOpen} aria-controls="advanced-filters">
           <ChevronRight style={{ width: 14, height: 14, transition: 'transform 0.2s', transform: panelOpen ? 'rotate(90deg)' : 'none' }} />
           {panelOpen ? 'Ocultar' : 'Mostrar'}
         </button>
@@ -150,7 +150,7 @@ export default function FilterBar({ filters, setFilters, catalogos, onReset }) {
 
       {/* Nivel 2: orden Grupo → Subgrupo → Marca → Empresa → Delegación */}
       {panelOpen && (
-        <div className="filter-row secondary">
+        <div className="filter-row secondary" id="advanced-filters">
           <div style={{ minWidth: 160 }}>
             <MultiSelect
               options={grupos} selected={filters.grupos || []} onChange={updateGrupos}

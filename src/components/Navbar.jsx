@@ -19,6 +19,7 @@ export default function Navbar({
 
   const isLive = connectionStatus?.mode === 'ERP_LIVE';
   const isStale = connectionStatus?.cacheStale;
+  const isHealthy = connectionStatus?.success === true && connectionStatus?.mode !== 'ERROR';
   const fechaCorta = connectionStatus?.extractedAt
     ? new Date(connectionStatus.extractedAt).toLocaleString('es-ES')
     : '—';
@@ -51,7 +52,11 @@ export default function Navbar({
                   {isLive ? 'ERP en vivo' : 'Caché'}
                 </span>
                 {!loading && (
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34d399', boxShadow: '0 0 8px #34d399', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+                  <span
+                    aria-label={isHealthy ? 'Conexión disponible' : 'Conexión no disponible'}
+                    title={isHealthy ? 'Conexión disponible' : 'Conexión no disponible'}
+                    style={{ width: 8, height: 8, borderRadius: '50%', background: isHealthy ? '#34d399' : '#f43f5e', boxShadow: `0 0 8px ${isHealthy ? '#34d399' : '#f43f5e'}`, display: 'inline-block', animation: isHealthy ? 'pulse 2s infinite' : 'none' }}
+                  />
                 )}
                 {isStale && <span className="badge badge-amber text-xs">Caché antigua</span>}
               </div>
@@ -110,7 +115,7 @@ export default function Navbar({
         </div>
 
         {/* Pestañas */}
-        <div className="navbar-tabs flex items-center gap-2 mt-4 border-t border-slate-800 pt-3 overflow-x-auto">
+        <div className="navbar-tabs flex items-center gap-2 mt-4 border-t border-slate-800 pt-3 overflow-x-auto" role="tablist" aria-label="Vistas del dashboard">
           <TabButton active={activeTab === 'tabla'} onClick={() => setActiveTab('tabla')} icon={Layers} label="Maestro de artículos" />
           <TabButton active={activeTab === 'compras'} onClick={() => setActiveTab('compras')} icon={ShoppingBag} label="Gestión de Compras (Pedidos)" />
           <TabButton active={activeTab === 'listin11'} onClick={() => setActiveTab('listin11')} icon={ListFilter} label="LISTIN 11" />
@@ -126,11 +131,28 @@ export default function Navbar({
 }
 
 function TabButton({ active, onClick, icon: Icon, label }) {
+  const handleKeyDown = (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    const tabs = [...event.currentTarget.closest('[role="tablist"]').querySelectorAll('[role="tab"]')];
+    const currentIndex = tabs.indexOf(event.currentTarget);
+    const targetIndex = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? tabs.length - 1
+        : (currentIndex + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    event.preventDefault();
+    tabs[targetIndex]?.focus();
+    tabs[targetIndex]?.click();
+  };
+
   return (
     <button
       onClick={onClick}
+      onKeyDown={handleKeyDown}
       className={`nav-tab ${active ? 'is-active' : ''}`}
-      aria-current={active ? 'page' : undefined}
+      role="tab"
+      aria-selected={active}
+      tabIndex={active ? 0 : -1}
     >
       <Icon className="w-4 h-4" />
       <span>{label}</span>
