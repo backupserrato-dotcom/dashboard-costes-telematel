@@ -9,18 +9,29 @@ echo   INICIANDO DASHBOARD COSTES MEDIOS TELEMATEL
 echo ================================================================
 echo.
 
-where node >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Node.js no esta instalado o no esta disponible en PATH.
-    echo Instale Node.js 22 o superior y vuelva a intentarlo.
-    echo.
-    pause
-    exit /b 1
+set "NODE_EXE=%~dp0runtime\node.exe"
+if not exist "%NODE_EXE%" (
+    where node >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] No se encontro el runtime incluido ni Node.js en PATH.
+        echo Ejecute scripts\instalar-servidor-red.ps1 para completar la instalacion.
+        echo.
+        pause
+        exit /b 1
+    )
+    set "NODE_EXE=node"
 )
 
 if not exist "dist\index.html" (
     echo [1/3] Compilando el dashboard por primera vez...
-    call npm.cmd install
+    where npm.cmd >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] Falta la compilacion y npm no esta disponible.
+        echo Ejecute scripts\instalar-servidor-red.ps1 para reparar la instalacion.
+        pause
+        exit /b 1
+    )
+    call npm.cmd ci
     if errorlevel 1 goto :build_error
     call npm.cmd run build
     if errorlevel 1 goto :build_error
@@ -33,7 +44,7 @@ if errorlevel 1 (
     echo [2/3] Arrancando servidor en el puerto 3000...
     if exist "dashboard-server.log" del /q "dashboard-server.log"
     if exist "dashboard-server-error.log" del /q "dashboard-server-error.log"
-    powershell -NoProfile -Command "Start-Process -WindowStyle Hidden -FilePath 'node' -ArgumentList 'server/dbConnectorServer.js' -WorkingDirectory '%~dp0' -RedirectStandardOutput '%~dp0dashboard-server.log' -RedirectStandardError '%~dp0dashboard-server-error.log'"
+    powershell -NoProfile -Command "Start-Process -WindowStyle Hidden -FilePath '%NODE_EXE%' -ArgumentList 'server/dbConnectorServer.js' -WorkingDirectory '%~dp0' -RedirectStandardOutput '%~dp0dashboard-server.log' -RedirectStandardError '%~dp0dashboard-server-error.log'"
 ) else (
     echo [2/3] El servidor ya esta activo en el puerto 3000.
 )

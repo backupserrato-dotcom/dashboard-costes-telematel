@@ -18,15 +18,16 @@ Sistema unificado de análisis de costes medios, valoración de inventario, gest
 
 ## 🛠️ Requisitos Técnicos
 
-- **Node.js**: v18.x o superior
+- **Servidor Windows recomendado**: Windows 10/11 o Windows Server, PowerShell 5.1+, driver Progress OpenEdge 11.7 ODBC x64 y acceso al ERP.
+- **Desarrollo**: Node.js 22 o superior.
 - **Docker & Docker Compose**: (Para despliegue en contenedor)
 - **Base de datos ERP**: Progress OpenEdge 11.7 (DSN ODBC `tlmplusV11` / `tlmplus1V11`)
 
 ---
 
-## 🐳 Despliegue con Docker para Red Interna (LAN)
+## 🐳 Docker: consulta de caché únicamente
 
-Para ejecutar la aplicación dentro de la red local de la empresa y permitir el acceso a otros equipos de la red:
+El contenedor permite consultar una copia de los JSON en caché. No actualiza el ERP porque la imagen Linux no contiene PowerShell, los DSN de Windows ni el driver Progress OpenEdge corporativo. Para acceso completo a Telematel use la instalación Windows de `C:\Costes`.
 
 ### 1. Construir y Arrancar con Docker Compose
 ```bash
@@ -38,7 +39,7 @@ Abre cualquier navegador en un ordenador de la red interna e ingresa:
 ```
 http://<IP-DEL-SERVIDOR>:3000
 ```
-*(Ejemplo: `http://192.168.1.3:3000`)*
+La API publicará `cacheOnly: true` y rechazará las acciones de actualización del ERP.
 
 ---
 
@@ -65,9 +66,9 @@ npm run package:windows
 
 ## 💻 Desarrollo y Ejecución Local sin Docker
 
-### 1. Instalar Dependencias
+### 1. Instalar dependencias verificadas
 ```bash
-npm install
+npm ci
 ```
 
 ### 2. Compilar el Frontend
@@ -107,7 +108,7 @@ git push -u origin main
 ## 📐 Estructura del Proyecto
 
 ```
-y:/ANALYTICS/COSTES/
+C:/Costes/
 ├── Dockerfile                      # Multistage Docker build configuration
 ├── docker-compose.yml              # Production compose for LAN deployment
 ├── server/

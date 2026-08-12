@@ -78,3 +78,12 @@ Ver `DICCIONARIO_DATOS.md` §4. Resueltas hasta ahora:
 - **Coste** (28/07/2026): coste medio ponderado de la ficha, `galartic.cos_art`.
 
 Pendiente: confirmar la **antigüedad máxima de la caché** (por defecto 24 h, ajustable en `CACHE_MAX_AGE_HOURS`).
+## Comprobación rápida del servidor
+
+Desde PowerShell puede validar la web, la API, la paginación y los pedidos con:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Costes\scripts\comprobar-despliegue.ps1 -BaseUrl http://127.0.0.1:3000
+```
+
+Los ordenadores cliente no necesitan Node.js, PowerShell ni el driver ODBC; únicamente un navegador y acceso a `http://192.168.1.57:3000`.

@@ -18,6 +18,7 @@ services:
       - TLM_PASSWORD=${TLM_PASSWORD}
       - TLM_HOST_NAME=dataserver
       - TLM_HOST_IP=192.168.1.3
+      - CACHE_ONLY=true
     volumes:
       - ./datos_costes_actualizados.json:/app/datos_costes_actualizados.json
       - ./datos_pedidos_pendientes.json:/app/datos_pedidos_pendientes.json
