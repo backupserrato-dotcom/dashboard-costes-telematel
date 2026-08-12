@@ -37,9 +37,13 @@ export default function ApiConnectorView({ connectionStatus, onRefreshLive }) {
   const runTest = async () => {
     setTesting(true);
     setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), type: 'info', msg: 'Ejecutando extractor unificado contra Telematel ERP…' }]);
-    await onRefreshLive();
+    const refreshed = await onRefreshLive();
     await loadAudit(false);
-    setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), type: connectionStatus?.mode === 'ERP_LIVE' ? 'success' : 'warning', msg: connectionStatus?.mode === 'ERP_LIVE' ? 'Lectura ERP completada.' : 'Revisar estado del servidor.' }]);
+    setLogs(prev => [...prev, {
+      time: new Date().toLocaleTimeString(),
+      type: refreshed ? 'success' : 'warning',
+      msg: refreshed ? 'Lectura ERP completada y caché actualizada.' : 'La actualización del ERP no se completó. Revise el estado del servidor.'
+    }]);
     setTesting(false);
   };
 
@@ -99,7 +103,7 @@ export default function ApiConnectorView({ connectionStatus, onRefreshLive }) {
           <div className="glass-card p-4">
             <span className="text-xs text-slate-400 block font-semibold uppercase tracking-wider mb-1">Calidad con Coste</span>
             <span className="text-2xl font-black text-emerald-400 font-mono">
-              {auditData?.quality?.porcentaje_con_coste != null ? `${auditData.quality.porcentaje_con_coste}%` : '93.81%'}
+              {auditData?.quality?.porcentaje_con_coste != null ? `${auditData.quality.porcentaje_con_coste}%` : '—'}
             </span>
             <span className="text-[11px] text-slate-400 block mt-1">Fichas con cos_art validado</span>
           </div>
@@ -107,7 +111,7 @@ export default function ApiConnectorView({ connectionStatus, onRefreshLive }) {
           <div className="glass-card p-4">
             <span className="text-xs text-slate-400 block font-semibold uppercase tracking-wider mb-1">Tamaño de dataset local</span>
             <span className="text-2xl font-black text-amber-400 font-mono">
-              {auditData?.fileSizeMb ? `${auditData.fileSizeMb} MB` : '19.5 MB'}
+              {auditData?.fileSizeMb != null ? `${auditData.fileSizeMb} MB` : '—'}
             </span>
             <span className="text-[11px] text-slate-400 block mt-1">Caché indexada lista para uso LAN</span>
           </div>
@@ -159,8 +163,8 @@ export default function ApiConnectorView({ connectionStatus, onRefreshLive }) {
               <Shield className="w-4 h-4 text-purple-400" />
               <span>Estado del conector</span>
             </span>
-            <span className={`badge ${connectionStatus?.success !== false ? 'badge-green' : 'badge-rose'}`}>
-              {connectionStatus?.mode || 'ONLINE'}
+            <span className={`badge ${connectionStatus?.success === true && connectionStatus?.mode !== 'ERROR' ? 'badge-green' : connectionStatus?.mode === 'ERROR' ? 'badge-rose' : 'badge-blue'}`}>
+              {connectionStatus?.mode || 'SIN DATOS'}
             </span>
           </div>
           <button onClick={runTest} disabled={testing} className="btn-primary w-full justify-center text-xs py-2">

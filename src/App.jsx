@@ -56,24 +56,25 @@ export default function App() {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     const refresh = await refreshErpNow();
-    if (requestId !== requestIdRef.current) return;
+    if (requestId !== requestIdRef.current) return false;
     if (!refresh.success) {
       setStatus(current => ({ ...current, mode: 'ERROR', error: refresh.error || 'No se pudo actualizar el ERP' }));
       setLoading(false);
-      return;
+      return false;
     }
     const [result, fullResult, pedRes] = await Promise.all([
       fetchLiveDatabaseData(filters, 'cache'),
       fetchLiveDatabaseData({}, 'cache', 0, 0),
       fetchPendingOrders()
     ]);
-    if (requestId !== requestIdRef.current) return;
+    if (requestId !== requestIdRef.current) return false;
     setRows(result.articles || []);
     setAllRows(fullResult.articles || []);
     setTotals(result.totals || { stock_disp: 0, valoracion: 0, articulos_unicos: 0 });
     setPendingOrders(pedRes.data || []);
     setStatus({ ...result, mode: 'ERP_LIVE' });
     setLoading(false);
+    return true;
   }, [filters]);
 
   useEffect(() => {

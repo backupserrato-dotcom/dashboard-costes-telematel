@@ -52,7 +52,7 @@ export default function DataTrustBar({ status, onRefreshLive }) {
           <strong className="text-slate-200">{(status.filteredRecords ?? status.totalRecords ?? 0).toLocaleString('es-ES')}</strong>
           {' '}de{' '}
           <strong className="text-slate-200">{(status.totalRecords ?? 0).toLocaleString('es-ES')}</strong>
-          {' '}artículos
+          {' '}filas de detalle
         </span>
       </div>
 
@@ -60,6 +60,7 @@ export default function DataTrustBar({ status, onRefreshLive }) {
         <div className="flex items-center gap-3 text-slate-400">
           <span>Con coste: <strong className="text-emerald-400">{calidad.porcentaje_con_coste}%</strong></span>
           <span>Con stock: <strong className="text-sky-400">{calidad.porcentaje_con_stock}%</strong></span>
+          {calidad.total_articulos != null && <span>Artículos únicos: <strong className="text-indigo-300">{calidad.total_articulos.toLocaleString('es-ES')}</strong></span>}
           {(calidad.unidades_no_mapeadas > 0 || calidad.ubicacion_no_mapeada) && (
             <span style={{ color: '#fbbf24' }}>No mapeadas: {calidad.unidades_no_mapeadas || 0} uds</span>
           )}
