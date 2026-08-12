@@ -840,11 +840,12 @@ body::after {
 .ranking-label { display: flex; justify-content: space-between; gap: .75rem; margin-bottom: .3rem; font-size: .72rem; }
 .ranking-label span { overflow: hidden; color: var(--text-primary); text-overflow: ellipsis; white-space: nowrap; }
 .ranking-label strong { flex: none; color: var(--text-secondary); font: 600 .68rem 'JetBrains Mono',monospace; }
+.ranking-label strong small { margin-left: .25rem; color: var(--accent-blue); font-size: .6rem; font-weight: 700; }
 .ranking-track { height: .35rem; overflow: hidden; border-radius: 999px; background: rgba(148,163,184,.12); }
 .ranking-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,var(--accent-indigo),var(--accent-blue)); transform-origin: left; animation: barGrow .75s cubic-bezier(.2,.8,.2,1) both; }
 @keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (max-width: 900px) { .dashboard-charts { grid-template-columns: 1fr; } }
-@media (max-width: 560px) { .chart-panel { padding: .85rem; } .chart-canvas { height: 230px; } .chart-heading p { display: none; } }
+@media (max-width: 560px) { .chart-panel { padding: .85rem; } .chart-canvas { height: 250px; } .chart-heading p { display: none; } .chart-canvas .recharts-yAxis { font-size: .55rem; } }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; } }
 .view-loading { min-height: 12rem; display: flex; align-items: center; justify-content: center; gap: .6rem; color: var(--text-secondary); font-size: .8rem; }
 .view-loading svg { width: 1rem; height: 1rem; color: var(--accent-blue); }
