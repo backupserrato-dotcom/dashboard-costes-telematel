@@ -13,7 +13,7 @@ const SortIcon = ({ field, sortField, sortDir }) => {
     : <ArrowDown style={{ width: 12, height: 12, color: '#38bdf8' }} />;
 };
 
-export default function ArticlesTable({ rows, totals, onSelectArticle, detailFilter }) {
+export default function ArticlesTable({ rows, totals, onSelectArticle }) {
   const [sortField, setSortField] = useState('nom_art');
   const [sortDir, setSortDir] = useState('asc');
   const [page, setPage] = useState(1);
@@ -117,10 +117,9 @@ export default function ArticlesTable({ rows, totals, onSelectArticle, detailFil
             ) : paginated.map((r, idx) => {
               const coste = getCoste(r);
               const isEven = idx % 2 === 0;
-              const isHi = detailFilter && r.cod_art === detailFilter;
               return (
                 <tr key={r.cod_art + r.empresa_id + r.delegacion_id + idx} className="art-row"
-                  style={{ background: isHi ? 'rgba(99,102,241,0.18)' : (isEven ? 'rgba(15,23,42,0.3)' : 'transparent') }}>
+                  style={{ background: isEven ? 'rgba(15,23,42,0.3)' : 'transparent' }}>
                   <td className="art-td" style={{ fontFamily: 'monospace', color: '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap' }}>{r.cod_art}</td>
                   <td className="art-td">
                     <span style={{ background: 'rgba(56,189,248,0.12)', color: '#38bdf8', border: '1px solid rgba(56,189,248,0.25)', borderRadius: 9999, padding: '2px 6px', fontSize: 10, fontFamily: 'monospace', fontWeight: 700, whiteSpace: 'nowrap' }}>

@@ -155,7 +155,7 @@ export default function UnifiedCostTable({ unifiedRows, onSeeDetail }) {
                       : <span style={{ color: '#475569', fontSize: 11 }}>No</span>}
                   </td>
                   <td className="art-td" style={{ textAlign: 'center' }}>
-                    <button onClick={() => onSeeDetail(r.cod_art)} className="art-detail-btn" title="Ir a las líneas de detalle de esta referencia">
+                    <button onClick={() => onSeeDetail(r.cod_art)} className="art-detail-btn" title="Ver ficha completa del artículo" aria-label={`Ver ficha completa del artículo ${r.cod_art}`}>
                       <Eye style={{ width: 14, height: 14 }} />
                     </button>
                   </td>

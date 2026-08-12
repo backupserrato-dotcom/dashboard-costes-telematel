@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Euro, PackageCheck, Warehouse, X } from 'lucide-react';
 import { buildStockMatrix, EMPRESAS_DELEGACIONES } from '../services/liveDbClient';
 
@@ -13,6 +13,7 @@ function selectArticleRows(allRows, visibleRows, codArt) {
 }
 
 export default function ArticleDetailModal({ codArt, allRows = [], visibleRows = [], onClose, status }) {
+  const closeButtonRef = useRef(null);
   const artRows = selectArticleRows(allRows, visibleRows, codArt);
   const first = artRows[0] || {};
   const totalStock = artRows.reduce((sum, row) => sum + Number(row.stock_disp || 0), 0);
@@ -27,15 +28,23 @@ export default function ArticleDetailModal({ codArt, allRows = [], visibleRows =
   const maxStock = Math.max(...locations.map((location) => location.stock), 1);
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
     const closeOnEscape = (event) => event.key === 'Escape' && onClose();
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
     window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus?.();
+    };
   }, [onClose]);
 
   return (
     <div className="article-modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
       <section className="article-modal glass-panel" role="dialog" aria-modal="true" aria-labelledby="article-detail-title">
-        <button onClick={onClose} className="article-modal-close" aria-label="Cerrar ficha"><X aria-hidden="true" /></button>
+        <button ref={closeButtonRef} onClick={onClose} className="article-modal-close" aria-label="Cerrar ficha"><X aria-hidden="true" /></button>
 
         {artRows.length === 0 ? (
           <div className="article-modal-empty">
