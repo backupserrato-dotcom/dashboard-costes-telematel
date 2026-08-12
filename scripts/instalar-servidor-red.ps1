@@ -59,4 +59,13 @@ $ready = $false
 if (-not $ready) { throw 'El servicio no respondió. Revise el historial de la tarea programada.' }
 
 Write-Host 'Instalación completada. Direcciones disponibles:'
-Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -match '^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)' } | ForEach-Object { Write-Host "  http://$($_.IPAddress):$Port" }
+$activeAdapters = Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object -ExpandProperty ifIndex
+Get-NetIPAddress -AddressFamily IPv4 |
+    Where-Object {
+        $_.InterfaceIndex -in $activeAdapters -and
+        $_.AddressState -eq 'Preferred' -and
+        -not $_.SkipAsSource -and
+        $_.IPAddress -match '^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)'
+    } |
+    Sort-Object IPAddress -Unique |
+    ForEach-Object { Write-Host "  http://$($_.IPAddress):$Port" }
