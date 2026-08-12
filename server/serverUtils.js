@@ -6,6 +6,17 @@ export function parsePowerShellJson(stdout) {
   return JSON.parse(clean.slice(start, end + 1));
 }
 
+export function repairKnownMojibake(value) {
+  if (typeof value === 'string') return value.replaceAll('Ã­', 'í');
+  if (Array.isArray(value)) return value.map(repairKnownMojibake);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entry]) => [key, repairKnownMojibake(entry)]),
+    );
+  }
+  return value;
+}
+
 export function calculateOrderSummary(orders = []) {
   let totalImportePendiente = 0;
   let totalUnidadesPendientes = 0;
