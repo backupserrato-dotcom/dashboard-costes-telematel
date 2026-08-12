@@ -62,6 +62,18 @@ Para construir el paquete desde el repositorio:
 npm run package:windows
 ```
 
+### Cliente LAN recomendado
+
+Para los ordenadores de los usuarios, genere el cliente ligero que abre el
+servidor central sin copiar datos, credenciales, Node.js ni ODBC:
+
+```powershell
+npm run package:lan-client
+```
+
+El ZIP resultante contiene `DashboardCostes-Cliente-LAN.exe`, un fichero
+`dashboard-url.txt` editable y las instrucciones de uso.
+
 ---
 
 ## 💻 Desarrollo y Ejecución Local sin Docker

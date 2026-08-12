@@ -1,0 +1,18 @@
+DASHBOARD COSTES - CLIENTE PARA RED INTERNA
+============================================
+
+Este paquete NO contiene Node.js, credenciales, controlador ODBC ni datos del ERP.
+
+USO
+1. Extraiga completamente el ZIP en cualquier carpeta del ordenador cliente.
+2. Abra DashboardCostes-Cliente-LAN.exe.
+3. El programa comprobará el servidor y abrirá el navegador.
+
+La dirección predeterminada es:
+http://192.168.1.57:3000
+
+Si cambia la dirección del servidor, edite dashboard-url.txt. Los equipos cliente
+solo necesitan Windows, un navegador y acceso a la red interna.
+
+Si aparece un aviso de conexión, compruebe la red corporativa y que el servidor
+C:\Costes esté encendido. No copie credenciales ni ficheros del ERP al cliente.
