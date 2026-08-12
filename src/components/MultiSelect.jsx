@@ -61,7 +61,7 @@ export default function MultiSelect({
   const selectedSet = new Set(selected);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className={`filter-multiselect ${isOpen ? 'is-open' : ''}`} ref={dropdownRef}>
       <label className="filter-label">
         <Icon style={{ width: 13, height: 13, color: iconColor }} />
         {label}
