@@ -66,6 +66,7 @@ export async function refreshErpNow() {
   try {
     const res = await fetch(`${SERVER_CONFIG.apiProxyUrl}/refresh-erp`, { method: 'POST' });
     if (res.ok) return await res.json();
+    return { success: false, error: `HTTP ${res.status}` };
   } catch (e) { console.warn('Refresh ERP error:', e.message); }
   return { success: false };
 }

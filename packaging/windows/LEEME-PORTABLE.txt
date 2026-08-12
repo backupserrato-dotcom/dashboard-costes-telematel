@@ -28,8 +28,8 @@ Se puede crear un archivo .env junto a DashboardCostes.exe:
 
 TLM_DSN=tlmplusV11
 TLM_DSN_INCREMENTAL=tlmplus1V11
-TLM_USER=userSQL
-TLM_PASSWORD=userSQL
+TLM_USER=<usuario_odbc>
+TLM_PASSWORD=<contraseña_odbc>
 TLM_HOST_NAME=dataserver
 TLM_HOST_IP=192.168.1.3
 

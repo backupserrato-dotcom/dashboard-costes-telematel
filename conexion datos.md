@@ -8,8 +8,8 @@ Este documento contiene la información detallada de configuración, hosts, puer
 
 | Parámetro | Valor |
 | :--- | :--- |
-| **Usuario (`UID`)** | `userSQL` |
-| **Contraseña (`PWD`)** | `userSQL` |
+| **Usuario (`UID`)** | Configurado mediante `TLM_USER` |
+| **Contraseña (`PWD`)** | Configurada mediante `TLM_PASSWORD` |
 | **Servidor / Host (`HostName`)** | `dataserver` |
 | **Driver ODBC** | `Progress OpenEdge 11.7 Driver` *(32-bit / 64-bit)* |
 | **Esquema SQL Predeterminado** | `PUB` |
@@ -57,13 +57,13 @@ Para aplicaciones nativas de Progress OpenEdge (4GL / AppServer) o clientes `pro
 ### Cadena de Conexión ODBC Estándar (PowerShell / .NET / C#)
 
 ```powershell
-$connectionString = "DSN=tlmplus1V11;UID=userSQL;PWD=userSQL"
+$connectionString = "DSN=tlmplus1V11;UID=$env:TLM_USER;PWD=$env:TLM_PASSWORD"
 $conn = New-Object System.Data.Odbc.OdbcConnection($connectionString)
 $conn.Open()
 ```
 
 ```csharp
-string connString = "DSN=tlmplus1V11;UID=userSQL;PWD=userSQL;";
+string connString = "DSN=tlmplus1V11;UID=<usuario>;PWD=<secreto>;";
 using (OdbcConnection conn = new OdbcConnection(connString)) {
     conn.Open();
     // Ejecutar consultas SQL
@@ -73,7 +73,7 @@ using (OdbcConnection conn = new OdbcConnection(connString)) {
 ### Cadena de Conexión Completa sin DSN (Driver Directo)
 
 ```text
-DRIVER={Progress OpenEdge 11.7 Driver};HOST=dataserver;PORT=2613;DB=tlmplus1;UID=userSQL;PWD=userSQL;
+DRIVER={Progress OpenEdge 11.7 Driver};HOST=dataserver;PORT=2613;DB=tlmplus1;UID=<usuario>;PWD=<secreto>;
 ```
 
 ---

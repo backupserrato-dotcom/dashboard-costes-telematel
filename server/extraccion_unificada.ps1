@@ -13,8 +13,11 @@ if (Test-Path $envFile) {
 
 $dsn        = $env:TLM_DSN
 if (-not $dsn) { $dsn = 'tlmplusV11' }
-$user       = if ($env:TLM_USER)       { $env:TLM_USER }       else { 'userSQL' }
-$password   = if ($env:TLM_PASSWORD)   { $env:TLM_PASSWORD }   else { 'userSQL' }
+$user       = $env:TLM_USER
+$password   = $env:TLM_PASSWORD
+if ([string]::IsNullOrWhiteSpace($user) -or [string]::IsNullOrWhiteSpace($password)) {
+    throw 'Faltan TLM_USER o TLM_PASSWORD. Configure el archivo .env del servidor.'
+}
 
 $dsnInc     = if ($env:TLM_DSN_INCREMENTAL) { $env:TLM_DSN_INCREMENTAL } else { 'tlmplus1V11' }
 

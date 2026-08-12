@@ -20,15 +20,17 @@ if (fs.existsSync(envPath)) {
 const ERP_CONFIG = {
   dsn: process.env.TLM_DSN || 'tlmplusV11',
   dsnIncremental: process.env.TLM_DSN_INCREMENTAL || 'tlmplus1V11',
-  user: process.env.TLM_USER || 'userSQL',
-  password: process.env.TLM_PASSWORD || 'userSQL',
+  user: process.env.TLM_USER || '',
+  password: process.env.TLM_PASSWORD || '',
   hostName: process.env.TLM_HOST_NAME || 'dataserver',
   hostIp: process.env.TLM_HOST_IP || '192.168.1.3',
   driver: 'Progress OpenEdge 11.7 Driver',
 };
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT || 3000);
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '').split(',').map(v => v.trim()).filter(Boolean);
+let refreshRunning = false;
 
 // Global error guards — prevent any unhandled promise/exception from crashing the server
 process.on('uncaughtException', (err) => {
@@ -38,8 +40,28 @@ process.on('unhandledRejection', (reason) => {
   console.error('[Server] Unhandled Rejection (server continues):', reason);
 });
 
-app.use(cors());
-app.use(express.json());
+app.disable('x-powered-by');
+if (ALLOWED_ORIGINS.length > 0) {
+  app.use(cors({
+    origin(origin, callback) {
+      if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+      return callback(new Error('Origen no autorizado'));
+    }
+  }));
+}
+app.use(express.json({ limit: '32kb' }));
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'");
+  next();
+});
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 
 const distPath             = path.join(__dirname, '..', 'dist');
 const auditScriptPath         = path.join(__dirname, 'auditar_descarga.ps1');
@@ -49,41 +71,49 @@ const cachedPedidosFile        = path.join(__dirname, '..', 'datos_pedidos_pendi
 const qualityFile             = path.join(__dirname, '..', 'datos_costes_calidad.json');
 
 const CACHE_MAX_AGE_HOURS = 24;
+const jsonMemoryCache = new Map();
+
+function readJsonFile(filePath, fallback) {
+  try {
+    const stats = fs.statSync(filePath);
+    const cached = jsonMemoryCache.get(filePath);
+    if (cached?.mtimeMs === stats.mtimeMs && cached?.size === stats.size) return cached.value;
+    const raw = fs.readFileSync(filePath, 'utf8').replace(/^\uFEFF/, '');
+    const value = JSON.parse(raw);
+    jsonMemoryCache.set(filePath, { mtimeMs: stats.mtimeMs, size: stats.size, value });
+    return value;
+  } catch {
+    return fallback;
+  }
+}
 
 // ─── Helper: read cached JSON safely ────────────────────────────────────────
 function readCache() {
-  try {
-    const raw = fs.readFileSync(cachedDataFile, 'utf8').replace(/^\uFEFF/, '');
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return null;
-  }
+  const data = readJsonFile(cachedDataFile, null);
+  return data === null ? null : (Array.isArray(data) ? data : []);
 }
 
 function readPedidosCache() {
-  try {
-    const raw = fs.readFileSync(cachedPedidosFile, 'utf8').replace(/^\uFEFF/, '');
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
-  } catch {
-    return [];
-  }
+  const data = readJsonFile(cachedPedidosFile, []);
+  return Array.isArray(data) ? data : [];
 }
 
 function readQuality() {
-  try {
-    const raw = fs.readFileSync(qualityFile, 'utf8').replace(/^\uFEFF/, '');
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
+  return readJsonFile(qualityFile, null);
 }
 
 function cacheAgeHours() {
   if (!fs.existsSync(cachedDataFile)) return null;
   const mtime = fs.statSync(cachedDataFile).mtime;
   return (Date.now() - mtime.getTime()) / 3600000;
+}
+
+function parsePowerShellJson(stdout) {
+  const clean = String(stdout || '').replace(/^\uFEFF/, '').trim();
+  const start = clean.indexOf('{');
+  const end = clean.lastIndexOf('}');
+  if (start < 0 || end < start) throw new Error('El script no devolvió JSON');
+  return JSON.parse(clean.slice(start, end + 1));
 }
 
 // ─── Health Check ───────────────────────────────────────────────────────────
@@ -109,15 +139,19 @@ app.get('/api/health', (req, res) => {
 
 // ─── Helper: ejecutar el extractor unificado ────────────────────────────────
 function runUnifiedExtractor(callback) {
+  if (!ERP_CONFIG.user || !ERP_CONFIG.password) {
+    return callback(new Error('Faltan TLM_USER o TLM_PASSWORD en el archivo .env'), null);
+  }
+  if (refreshRunning) return callback(new Error('Ya hay una actualización del ERP en curso'), null);
+  refreshRunning = true;
   execFile('powershell.exe',
     ['-ExecutionPolicy', 'Bypass', '-File', unifiedExtractorPath],
     { maxBuffer: 50 * 1024 * 1024, timeout: 600000 },
     (error, stdout) => {
+      refreshRunning = false;
       if (error) return callback(error, null);
       try {
-        const lines = stdout.trim().split('\n');
-        const jsonLine = lines.reverse().find(l => l.trim().startsWith('{'));
-        const status = jsonLine ? JSON.parse(jsonLine.replace(/^\uFEFF/, '')) : { raw: stdout };
+        const status = parsePowerShellJson(stdout);
         callback(null, status);
       } catch {
         callback(null, { raw: stdout.slice(0, 500) });
@@ -327,9 +361,7 @@ app.get('/api/audit-status', (req, res) => {
         });
       }
       try {
-        const lines = stdout.trim().split('\n');
-        const jsonLine = lines.reverse().find(l => l.trim().startsWith('{'));
-        const data = jsonLine ? JSON.parse(jsonLine.replace(/^\uFEFF/, '')) : {};
+        const data = parsePowerShellJson(stdout);
         res.json({
           success: true,
           mode: 'LIVE_ODBC_AUDIT',
@@ -467,8 +499,9 @@ app.get('/api/incremental-sync', async (req, res) => {
   const mode = (req.query.mode || 'cache').toLowerCase();
 
   const paginate = (data) => {
-    const page = parseInt(req.query.page) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 0;
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const requestedPageSize = parseInt(req.query.pageSize) || 0;
+    const pageSize = requestedPageSize > 0 ? Math.min(requestedPageSize, 500) : 0;
     if (pageSize > 0) {
       const start = (page - 1) * pageSize;
       return { page, pageSize, totalPages: Math.ceil(data.length / pageSize) || 1, pageData: data.slice(start, start + pageSize) };
@@ -585,7 +618,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`╔══════════════════════════════════════════════════════════╗`);
   console.log(`║  Dashboard Costes Medios — Servidor Unificado            ║`);
   console.log(`║  URL:     http://localhost:${PORT}                         ║`);
-  console.log(`║  ODBC:    Progress OpenEdge 11.7 (userSQL@dataserver)    ║`);
+  console.log(`║  ODBC:    Progress OpenEdge 11.7 (${ERP_CONFIG.user ? 'configurado' : 'sin credenciales'})`);
   console.log(`║  Dataset: ${cache ? cache.length.toLocaleString('es-ES') + ' filas de detalle' : 'Sin caché'}`);
   console.log(`║  Pedidos: ${pedidos.length.toLocaleString('es-ES') + ' líneas pendientes de recepcionar'}`);
   console.log(`╚══════════════════════════════════════════════════════════╝`);
