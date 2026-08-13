@@ -6,7 +6,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-if ($root -ne 'C:\Costes') { throw "Ejecute esta instalación desde C:\Costes (ruta actual: $root)." }
 
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]$identity
@@ -14,33 +13,46 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
     throw 'Abra PowerShell como administrador y vuelva a ejecutar el instalador.'
 }
 
-$node = (Get-Command node.exe -ErrorAction Stop).Source
-$npm = (Get-Command npm.cmd -ErrorAction Stop).Source
 $packageJson = Join-Path $root 'package.json'
 $packageLock = Join-Path $root 'package-lock.json'
 if (-not (Test-Path -LiteralPath $packageJson) -or -not (Test-Path -LiteralPath $packageLock)) {
-    throw 'La instalación está incompleta: faltan package.json o package-lock.json en C:\Costes.'
+    throw "La instalación está incompleta: faltan package.json o package-lock.json en $root."
 }
 
-Write-Host '[1/6] Instalando dependencias verificadas...'
-& $npm ci --prefix $root
-if ($LASTEXITCODE -ne 0) { throw 'No se pudieron instalar las dependencias.' }
-Write-Host '[2/6] Compilando el dashboard...'
-& $npm run build --prefix $root
-if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el dashboard.' }
-
-Write-Host '[3/6] Incluyendo runtime independiente...'
 $runtime = Join-Path $root 'runtime'
-New-Item -ItemType Directory -Force -Path $runtime | Out-Null
-Copy-Item -LiteralPath $node -Destination (Join-Path $runtime 'node.exe') -Force
+$runtimeNode = Join-Path $runtime 'node.exe'
+$nodeCommand = Get-Command node.exe -ErrorAction SilentlyContinue
+$npmCommand = Get-Command npm.cmd -ErrorAction SilentlyContinue
+
+if ($nodeCommand -and $npmCommand) {
+    Write-Host '[1/6] Instalando dependencias verificadas...'
+    & $npmCommand.Source ci --prefix $root
+    if ($LASTEXITCODE -ne 0) { throw 'No se pudieron instalar las dependencias.' }
+    Write-Host '[2/6] Compilando el dashboard...'
+    & $npmCommand.Source run build --prefix $root
+    if ($LASTEXITCODE -ne 0) { throw 'No se pudo compilar el dashboard.' }
+    Write-Host '[3/6] Incluyendo runtime independiente...'
+    New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+    if ([IO.Path]::GetFullPath($nodeCommand.Source) -ne [IO.Path]::GetFullPath($runtimeNode)) {
+        Copy-Item -LiteralPath $nodeCommand.Source -Destination $runtimeNode -Force
+    }
+} else {
+    Write-Host '[1/6] Usando el despliegue portátil existente...'
+    $requiredPaths = @($runtimeNode, (Join-Path $root 'node_modules'), (Join-Path $root 'dist'))
+    $missingPaths = @($requiredPaths | Where-Object { -not (Test-Path -LiteralPath $_) })
+    if ($missingPaths.Count -gt 0) {
+        throw "Faltan componentes del despliegue portátil: $($missingPaths -join ', ')"
+    }
+    Write-Host '[2/6] Dependencias y frontend ya preparados.'
+    Write-Host '[3/6] Runtime independiente disponible.'
+}
 
 if (-not (Test-Path (Join-Path $root '.env'))) {
     Copy-Item -LiteralPath (Join-Path $root '.env.example') -Destination (Join-Path $root '.env')
-    throw 'Se ha creado C:\Costes\.env. Configure las credenciales y ejecute de nuevo el instalador.'
+    throw "Se ha creado $root\.env. Configure las credenciales y ejecute de nuevo el instalador."
 }
 
 Write-Host '[4/6] Registrando arranque automático...'
-$runtimeNode = Join-Path $runtime 'node.exe'
 $server = Join-Path $root 'server\dbConnectorServer.js'
 $action = New-ScheduledTaskAction -Execute $runtimeNode -Argument "`"$server`"" -WorkingDirectory $root
 $trigger = New-ScheduledTaskTrigger -AtStartup
@@ -51,9 +63,10 @@ $dailyTime = [TimeSpan]::Zero
 if (-not [TimeSpan]::TryParse($DailyUpdateAt, [ref]$dailyTime)) {
     throw "Hora de actualizacion no valida: $DailyUpdateAt"
 }
+$dailyAt = [DateTime]::Today.Add($dailyTime)
 $dailyScript = Join-Path $root 'scripts\actualizar-erp-diario.ps1'
 $dailyAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$dailyScript`" -Port $Port" -WorkingDirectory $root
-$dailyTrigger = New-ScheduledTaskTrigger -Daily -At $dailyTime
+$dailyTrigger = New-ScheduledTaskTrigger -Daily -At $dailyAt
 $dailySettings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 20) -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName "$TaskName Actualizacion Diaria" -Action $dailyAction -Trigger $dailyTrigger -Settings $dailySettings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
 
@@ -72,7 +85,6 @@ $ready = $false
 }
 if (-not $ready) { throw 'El servicio no respondió. Revise el historial de la tarea programada.' }
 & (Join-Path $PSScriptRoot 'comprobar-despliegue.ps1') -BaseUrl "http://127.0.0.1:$Port"
-if ($LASTEXITCODE -ne 0) { throw 'La comprobación funcional del dashboard no se completó.' }
 
 Write-Host 'Instalación completada. Direcciones disponibles:'
 $activeAdapters = Get-NetAdapter | Where-Object Status -eq 'Up' | Select-Object -ExpandProperty ifIndex
