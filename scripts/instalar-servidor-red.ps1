@@ -1,4 +1,8 @@
-param([int]$Port = 3000, [string]$TaskName = 'Dashboard Costes Telematel')
+param(
+    [int]$Port = 3000,
+    [string]$TaskName = 'Dashboard Costes Telematel',
+    [string]$DailyUpdateAt = '06:00'
+)
 
 $ErrorActionPreference = 'Stop'
 $root = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -42,6 +46,16 @@ $action = New-ScheduledTaskAction -Execute $runtimeNode -Argument "`"$server`"" 
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $settings = New-ScheduledTaskSettingsSet -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1) -ExecutionTimeLimit (New-TimeSpan -Days 3650) -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
 Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Settings $settings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
+
+$dailyTime = [TimeSpan]::Zero
+if (-not [TimeSpan]::TryParse($DailyUpdateAt, [ref]$dailyTime)) {
+    throw "Hora de actualizacion no valida: $DailyUpdateAt"
+}
+$dailyScript = Join-Path $root 'scripts\actualizar-erp-diario.ps1'
+$dailyAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$dailyScript`" -Port $Port" -WorkingDirectory $root
+$dailyTrigger = New-ScheduledTaskTrigger -Daily -At $dailyTime
+$dailySettings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 20) -MultipleInstances IgnoreNew
+Register-ScheduledTask -TaskName "$TaskName Actualizacion Diaria" -Action $dailyAction -Trigger $dailyTrigger -Settings $dailySettings -User 'SYSTEM' -RunLevel Highest -Force | Out-Null
 
 Write-Host '[5/6] Abriendo el puerto solo a la subred privada...'
 $ruleName = "Dashboard Costes TCP $Port"
