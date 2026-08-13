@@ -28,6 +28,7 @@ const EMPTY_FILTERS = {
 export default function App() {
   const [activeTab, setActiveTab] = useState('tabla');
   const [loading, setLoading] = useState(true);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [status, setStatus] = useState(null);
   const [rows, setRows] = useState([]);
   const [totals, setTotals] = useState({ stock_disp: 0, valoracion: 0, articulos_unicos: 0 });
@@ -158,6 +159,8 @@ export default function App() {
   }, []);
 
   const handleExportExcel = async () => {
+    if (exportingExcel) return;
+    setExportingExcel(true);
     try {
       const writeExcelFile = (await import('write-excel-file/browser')).default;
       // Hoja 1: detalle por artículo + empresa + delegación
@@ -236,7 +239,7 @@ export default function App() {
       });
 
       // Hoja 4: Pedidos pendientes de recepcionar
-      const ordersData = (pendingOrders || []).map(p => ({
+      const ordersData = filteredPendingOrders.map(p => ({
         'Nº Pedido': p.pedido_id,
         'Línea': p.linea_num,
         'Fecha Pedido': p.fecha_pedido,
@@ -281,18 +284,13 @@ export default function App() {
         createSheet('Pedidos Pendientes', ordersData),
       ];
 
-      const blob = await writeExcelFile(sheets).toBlob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `LISTIN_11_Costes_y_Compras_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      const fileName = `LISTIN_11_Costes_y_Compras_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      await writeExcelFile(sheets).toFile(fileName);
     } catch (err) {
       console.error('Error al exportar a Excel:', err);
       alert('Error al generar el archivo Excel. Por favor reintente.');
+    } finally {
+      setExportingExcel(false);
     }
   };
 
@@ -303,6 +301,7 @@ export default function App() {
         onRefreshCache={loadCache}
         onRefreshLive={loadLive}
         onExportExcel={handleExportExcel}
+        exportingExcel={exportingExcel}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         loading={loading}

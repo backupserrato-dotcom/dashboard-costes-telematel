@@ -9,7 +9,8 @@ export default function Navbar({
   onExportExcel,
   activeTab,
   setActiveTab,
-  loading
+  loading,
+  exportingExcel
 }) {
   const [calidad, setCalidad] = useState(null);
 
@@ -107,9 +108,17 @@ export default function Navbar({
               <span className="hidden sm:inline">{loading ? 'Consultando…' : 'Consultar ERP ahora'}</span>
             </button>
 
-            <button onClick={onExportExcel} className="btn-secondary text-xs" title="Exportar las filas filtradas a Excel">
-              <Download className="w-3.5 h-3.5" />
-              <span>Exportar Excel</span>
+            <button
+              onClick={onExportExcel}
+              disabled={loading || exportingExcel}
+              className="btn-secondary text-xs"
+              title="Exportar las filas filtradas a Excel"
+              aria-busy={exportingExcel}
+            >
+              {exportingExcel
+                ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                : <Download className="w-3.5 h-3.5" />}
+              <span>{exportingExcel ? 'Generando Excel…' : 'Exportar Excel'}</span>
             </button>
           </div>
         </div>
