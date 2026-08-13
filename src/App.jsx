@@ -9,7 +9,7 @@ import ArticleDetailModal from './components/ArticleDetailModal';
 import { parseCableSectionAndColor } from './utils/cableParser';
 import {
   fetchLiveDatabaseData, fetchServerInfo, fetchCatalogos, refreshErpNow, fetchPendingOrders,
-  calculateKpis, buildUnifiedRows, SERVER_CONFIG
+  calculateKpis, buildUnifiedRows, SERVER_CONFIG, EMPRESAS_DELEGACIONES, SCHEMA_MAPPINGS
 } from './services/liveDbClient';
 import { RefreshCw, Database } from 'lucide-react';
 
@@ -164,7 +164,7 @@ export default function App() {
     try {
       const writeExcelFile = (await import('write-excel-file/browser')).default;
       // Hoja 1: detalle por artículo + empresa + delegación
-      const exportData = rows.map(r => ({
+      const exportData = activeTab !== 'tabla' ? [] : rows.map(r => ({
         'Código Artículo': r.cod_art,
         'Referencia': r.ref_art,
         'Descripción Oficial': r.nom_art,
@@ -181,7 +181,7 @@ export default function App() {
       }));
 
       // Hoja 2: coste medio unificado general
-      const unifiedData = unifiedRows.map(u => ({
+      const unifiedData = activeTab !== 'tabla' ? [] : unifiedRows.map(u => ({
         'Código Artículo': u.cod_art,
         'Referencia': u.ref_art,
         'Descripción Oficial': u.nom_art,
@@ -200,7 +200,7 @@ export default function App() {
       }));
 
       // Hoja 3: LISTIN 11 (Grupo 1L y Subgrupo 11) - Cables con costes unificados por sección
-      const listin11Base = masterUnifiedRows.filter(r => {
+      const listin11Base = activeTab !== 'listin11' ? [] : masterUnifiedRows.filter(r => {
         const grc = (r.cod_grc || r.nom_grc || '').toString().trim().toUpperCase();
         const gru = (r.cod_gru || r.nom_gru || '').toString().trim().replace(/^0+/, '');
         return (grc === '1L' || grc.startsWith('1L')) && (gru === '11' || gru === '011' || gru.endsWith('11'));
@@ -239,7 +239,7 @@ export default function App() {
       });
 
       // Hoja 4: Pedidos pendientes de recepcionar
-      const ordersData = filteredPendingOrders.map(p => ({
+      const ordersData = activeTab !== 'compras' ? [] : filteredPendingOrders.map(p => ({
         'Nº Pedido': p.pedido_id,
         'Línea': p.linea_num,
         'Fecha Pedido': p.fecha_pedido,
@@ -260,6 +260,44 @@ export default function App() {
         'Importe Pendiente Recepcionar (€)': p.importe_pendiente
       }));
 
+      const delegationTotals = new Map();
+      for (const row of activeTab === 'delegaciones' ? rows : []) {
+        const key = `${row.empresa_id || ''}-${row.delegacion_id || ''}`;
+        const current = delegationTotals.get(key) || { stock: 0, valoracion: 0, articulos: new Set() };
+        current.stock += Number(row.stock_disp) || 0;
+        current.valoracion += Number(row.valoracion) || 0;
+        if (row.cod_art) current.articulos.add(row.cod_art);
+        delegationTotals.set(key, current);
+      }
+      const delegationsData = EMPRESAS_DELEGACIONES.flatMap(empresa =>
+        empresa.delegaciones.map(delegacion => {
+          const totals = delegationTotals.get(`${empresa.empresaId}-${delegacion.id}`);
+          return {
+            'Empresa': empresa.empresaNombre,
+            'Delegación': delegacion.nombre,
+            'Stock disponible': totals?.stock || 0,
+            'Referencias': totals?.articulos.size || 0,
+            'Valoración (€)': totals?.valoracion || 0,
+          };
+        }),
+      );
+
+      const connectorData = [{
+        'Estado': status?.success ? 'Disponible' : 'No disponible',
+        'Modo': status?.mode || '',
+        'Servidor': SERVER_CONFIG.hostName,
+        'Dirección': SERVER_CONFIG.ip,
+        'Driver': SERVER_CONFIG.driver,
+        'Registros en caché': status?.totalRecords ?? rows.length,
+        'Fecha de los datos': status?.extractedAt || status?.cacheDate || '',
+        'Caché antigua': status?.cacheStale ? 'Sí' : 'No',
+      }];
+      const schemaData = SCHEMA_MAPPINGS.map(mapping => ({
+        'Tabla ERP': mapping.tablaBD,
+        'Etiqueta API': mapping.tagAPI,
+        'Descripción': mapping.descripcion,
+      }));
+
       const createSheet = (sheet, data) => {
         if (data.length === 0) {
           return { sheet, data: [[{ value: 'Sin datos para los filtros aplicados' }]], columns: [{ width: 36 }] };
@@ -277,15 +315,31 @@ export default function App() {
         };
       };
 
-      const sheets = [
-        createSheet('Detalle Artículos', exportData),
-        createSheet('Lista Unificada General', unifiedData),
-        createSheet('LISTIN 11 (Grupo 1L-11)', listin11ExportData),
-        createSheet('Pedidos Pendientes', ordersData),
-      ];
-
-      const fileName = `LISTIN_11_Costes_y_Compras_${new Date().toISOString().slice(0, 10)}.xlsx`;
-      await writeExcelFile(sheets).toFile(fileName);
+      const exportByTab = {
+        tabla: {
+          name: 'Maestro_Articulos',
+          sheets: [createSheet('Detalle Artículos', exportData), createSheet('Lista Unificada', unifiedData)],
+        },
+        compras: {
+          name: 'Pedidos_Pendientes',
+          sheets: [createSheet('Pedidos Pendientes', ordersData)],
+        },
+        listin11: {
+          name: 'LISTIN_11',
+          sheets: [createSheet('LISTIN 11', listin11ExportData)],
+        },
+        delegaciones: {
+          name: 'Delegaciones',
+          sheets: [createSheet('Delegaciones', delegationsData)],
+        },
+        api: {
+          name: 'Conector_ODBC',
+          sheets: [createSheet('Estado Conector', connectorData), createSheet('Tablas ERP', schemaData)],
+        },
+      };
+      const currentExport = exportByTab[activeTab] || exportByTab.tabla;
+      const fileName = `${currentExport.name}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      await writeExcelFile(currentExport.sheets).toFile(fileName);
     } catch (err) {
       console.error('Error al exportar a Excel:', err);
       alert('Error al generar el archivo Excel. Por favor reintente.');
