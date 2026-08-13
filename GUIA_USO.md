@@ -20,6 +20,10 @@ La franja superior indica siempre la **fecha de la última lectura** y la
 **antigüedad de la caché**. Si la caché supera las 24 h, se avisa con un aviso
 amarillo (“Caché antigua”) y se recomienda consultar el ERP.
 
+La instalación de red registra además una actualización automática diaria del
+ERP a las **06:00**. Si el equipo estaba apagado, Windows la ejecutará al volver
+a estar disponible. El resultado queda en `actualizacion-erp-diaria.log`.
+
 ## 2. Significado de cada dato
 
 | Qué se muestra | Significado | Estado cuando no hay dato |

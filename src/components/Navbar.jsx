@@ -124,7 +124,7 @@ export default function Navbar({
         </div>
 
         {/* Pestañas */}
-        <div className="navbar-tabs flex items-center gap-2 mt-4 border-t border-slate-800 pt-3 overflow-x-auto" role="tablist" aria-label="Vistas del dashboard">
+        <div className="navbar-tabs mt-4 border-t border-slate-800 pt-3" role="tablist" aria-label="Vistas del dashboard">
           <TabButton active={activeTab === 'tabla'} onClick={() => setActiveTab('tabla')} icon={Layers} label="Maestro de artículos" />
           <TabButton active={activeTab === 'compras'} onClick={() => setActiveTab('compras')} icon={ShoppingBag} label="Gestión de Compras (Pedidos)" />
           <TabButton active={activeTab === 'listin11'} onClick={() => setActiveTab('listin11')} icon={ListFilter} label="LISTIN 11" />
