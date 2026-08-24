@@ -9,10 +9,10 @@ USO
 3. El programa comprobará el servidor y abrirá el navegador.
 
 La dirección predeterminada es:
-http://192.168.1.57:3000
+http://192.168.1.116:3000
 
 Si cambia la dirección del servidor, edite dashboard-url.txt. Los equipos cliente
 solo necesitan Windows, un navegador y acceso a la red interna.
 
 Si aparece un aviso de conexión, compruebe la red corporativa y que el servidor
-C:\Costes esté encendido. No copie credenciales ni ficheros del ERP al cliente.
+el servidor HOMELAB esté encendido. No copie credenciales ni ficheros del ERP al cliente.

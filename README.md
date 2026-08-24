@@ -27,7 +27,7 @@ Sistema unificado de análisis de costes medios, valoración de inventario, gest
 
 ## 🐳 Docker: consulta de caché únicamente
 
-El contenedor permite consultar una copia de los JSON en caché. No actualiza el ERP porque la imagen Linux no contiene PowerShell, los DSN de Windows ni el driver Progress OpenEdge corporativo. Para acceso completo a Telematel use la instalación Windows de `C:\Costes`.
+El contenedor permite consultar una copia de los JSON en caché. No actualiza el ERP porque la imagen Linux no contiene PowerShell, los DSN de Windows ni el driver Progress OpenEdge corporativo. Para acceso completo a Telematel use la instalación Windows de `C:\Homelab\projects\Costes`.
 
 ### 1. Construir y Arrancar con Docker Compose
 ```bash

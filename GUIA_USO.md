@@ -87,7 +87,7 @@ Pendiente: confirmar la **antigüedad máxima de la caché** (por defecto 24 h, 
 Desde PowerShell puede validar la web, la API, la paginación y los pedidos con:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Costes\scripts\comprobar-despliegue.ps1 -BaseUrl http://127.0.0.1:3000
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Homelab\projects\Costes\scripts\comprobar-despliegue.ps1 -BaseUrl http://127.0.0.1:3000
 ```
 
-Los ordenadores cliente no necesitan Node.js, PowerShell ni el driver ODBC; únicamente un navegador y acceso a `http://192.168.1.57:3000`.
+Los ordenadores cliente no necesitan Node.js, PowerShell ni el driver ODBC; únicamente un navegador y acceso a `http://192.168.1.116:3000`.

@@ -2,7 +2,7 @@
 
 ## Arquitectura objetivo
 
-Un único equipo Windows actúa como servidor en `C:\Costes`. Solo ese equipo necesita el controlador ODBC, los DSN de Telematel y acceso al ERP. El resto de usuarios accede con un navegador y no necesita Node.js ni instalar la aplicación.
+Un único equipo Windows actúa como servidor en `C:\Homelab\projects\Costes`. Solo ese equipo necesita el controlador ODBC, los DSN de Telematel y acceso al ERP. El resto de usuarios accede con un navegador y no necesita Node.js ni instalar la aplicación.
 
 `Navegadores LAN → HTTP privado:3000 → API Node/Express → caché JSON → extractor PowerShell/ODBC → Telematel`
 
@@ -16,7 +16,7 @@ Un único equipo Windows actúa como servidor en `C:\Costes`. Solo ese equipo ne
 ## 2. Configurar secretos
 
 1. Copiar `.env.example` como `.env`.
-2. Informar `TLM_USER` y `TLM_PASSWORD` en `C:\Costes\.env`.
+2. Informar `TLM_USER` y `TLM_PASSWORD` en `C:\Homelab\projects\Costes\.env`.
 3. No subir `.env` a GitHub ni compartirlo con clientes.
 4. Usar una credencial exclusiva, de solo lectura y con rotación periódica.
 
@@ -35,7 +35,7 @@ Abrir PowerShell como administrador:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
-& 'C:\Costes\scripts\instalar-servidor-red.ps1'
+& 'C:\Homelab\projects\Costes\scripts\instalar-servidor-red.ps1'
 ```
 
 El instalador compila la interfaz, incluye un runtime de Node, registra el arranque automático como `SYSTEM`, abre el puerto 3000 solo para la subred privada y comprueba el servicio.
@@ -43,7 +43,7 @@ El instalador compila la interfaz, incluye un runtime de Node, registra el arran
 ## 5. Publicar a usuarios
 
 1. Crear un nombre DNS interno estable, por ejemplo `http://costes:3000`.
-2. Hasta disponer de DNS, usar `http://192.168.1.57:3000` o la IP mostrada por el instalador.
+2. Hasta disponer de DNS, usar `http://192.168.1.116:3000` o la IP mostrada por el instalador.
 3. Distribuir solo la URL; nunca credenciales ni copias de datos.
 4. Probar desde otro equipo: carga, filtros, detalle, compras, LISTIN 11 y exportación.
 

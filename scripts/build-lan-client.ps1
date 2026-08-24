@@ -1,4 +1,4 @@
-param([string]$DashboardUrl = 'http://192.168.1.57:3000')
+param([string]$DashboardUrl = 'http://192.168.1.116:3000')
 
 $ErrorActionPreference = 'Stop'
 $projectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -26,8 +26,18 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'packaging\windows\LEEME-CLIENTE-
 & tar.exe -a -c -f $zipPath -C $releaseRoot $packageName
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo crear el ZIP del cliente LAN.' }
 
-$hash = Get-FileHash -Algorithm SHA256 -LiteralPath $zipPath
-Set-Content -LiteralPath "$zipPath.sha256" -Value "$($hash.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($zipPath))" -Encoding ASCII
+$sha256 = [System.Security.Cryptography.SHA256]::Create()
+try {
+    $zipStream = [System.IO.File]::OpenRead($zipPath)
+    try {
+        $hashValue = ([System.BitConverter]::ToString($sha256.ComputeHash($zipStream))).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $zipStream.Dispose()
+    }
+} finally {
+    $sha256.Dispose()
+}
+Set-Content -LiteralPath "$zipPath.sha256" -Value "$hashValue  $([IO.Path]::GetFileName($zipPath))" -Encoding ASCII
 
 Get-Item -LiteralPath $zipPath | Select-Object FullName, Length, LastWriteTime
-$hash
+[pscustomobject]@{ Algorithm = 'SHA256'; Hash = $hashValue; Path = $zipPath }

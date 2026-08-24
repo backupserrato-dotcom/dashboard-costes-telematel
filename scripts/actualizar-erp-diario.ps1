@@ -1,9 +1,13 @@
 param(
     [int]$Port = 3000,
-    [string]$LogFile = 'C:\Costes\actualizacion-erp-diaria.log'
+    [string]$LogFile = ''
 )
 
 $ErrorActionPreference = 'Stop'
+$projectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+if ([string]::IsNullOrWhiteSpace($LogFile)) {
+    $LogFile = Join-Path $projectRoot 'actualizacion-erp-diaria.log'
+}
 $baseUrl = "http://127.0.0.1:$Port"
 
 function Write-UpdateLog([string]$Message) {
