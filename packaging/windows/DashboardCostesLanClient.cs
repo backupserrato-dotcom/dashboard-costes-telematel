@@ -6,7 +6,7 @@ using System.Windows.Forms;
 
 internal static class DashboardCostesLanClient
 {
-    private const string DefaultUrl = "http://192.168.1.57:3000";
+    private const string DefaultUrl = "http://192.168.1.116:3000";
 
     [STAThread]
     private static void Main()
