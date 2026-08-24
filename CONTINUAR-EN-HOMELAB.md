@@ -47,5 +47,7 @@ Las credenciales ODBC permanecen exclusivamente en `.env` en el nodo y no se
 deben copiar al repositorio ni al navegador. El nodo utiliza los DSN de sistema
 `tlmplusV11` y `tlmplus1V11` para el ERP `192.168.1.3`.
 
-El proyecto se incluye en la copia diaria del homelab, con copia adicional en
-`C:\homelab\backups` y retención de siete archivos.
+El proyecto se incluye en la copia diaria del homelab, almacenada en
+`C:\ProgramData\Homelab\backups` con retención de siete archivos
+`homelab-*.tar.gz`. La prueba completa de restauración debe ejecutarse desde una
+sesión elevada porque actualiza `C:\ProgramData\Homelab\health`.
